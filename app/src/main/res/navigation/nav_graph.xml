@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/screenA">
+
+    <fragment
+        android:id="@+id/screenA"
+        android:name="com.github.navigationapp.Fragments.FragmentA"
+        android:label="Screen A" />
+
+    <fragment
+        android:id="@+id/screenB"
+        android:name="com.github.navigationapp.Fragments.FragmentB"
+        android:label="Screen B" />
+
+    <fragment
+        android:id="@+id/screenC"
+        android:name="com.github.navigationapp.Fragments.FragmentC"
+        android:label="Screen C" />
+
+    <action
+        android:id="@+id/action_screenA_to_screenB"
+        app:destination="@id/screenB" />
+
+    <action
+        android:id="@+id/action_screenA_to_screenC"
+        app:destination="@id/screenC" />
+
+    <action
+        android:id="@+id/action_screenB_to_screenB"
+        app:destination="@id/screenB" />
+
+</navigation>
