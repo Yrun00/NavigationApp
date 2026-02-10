@@ -1,4 +1,4 @@
-package com.github.navigationapp.Fragments
+package com.github.navigationapp.fragments
 
 import androidx.fragment.app.Fragment
 

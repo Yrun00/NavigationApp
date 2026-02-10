@@ -6,17 +6,17 @@
 
     <fragment
         android:id="@+id/screenA"
-        android:name="com.github.navigationapp.Fragments.FragmentA"
+        android:name="com.github.navigationapp.fragments.FragmentA"
         android:label="Screen A" />
 
     <fragment
         android:id="@+id/screenB"
-        android:name="com.github.navigationapp.Fragments.FragmentB"
+        android:name="com.github.navigationapp.fragments.FragmentB"
         android:label="Screen B" />
 
     <fragment
         android:id="@+id/screenC"
-        android:name="com.github.navigationapp.Fragments.FragmentC"
+        android:name="com.github.navigationapp.fragments.FragmentC"
         android:label="Screen C" />
 
     <action
