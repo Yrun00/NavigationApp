@@ -1,5 +1,6 @@
 package com.github.navigationapp.fragments
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,7 +13,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 /**
  * FragmentB - рекурсивный экран
- * 
+ *
  * Особенности:
  * - Получает recursionDepth из Bundle (передается в аргументах)
  * - Вычисляет глубину backstack через NavigationHost родителя
@@ -22,20 +23,31 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class FragmentB : Fragment() {
 
+
     private val recursionDepth: Int by lazy {
         arguments?.getInt(ARG_RECURSION_DEPTH) ?: 0
     }
 
     // NavigationHost передается извне
-    private var navigationHost: NavigationHost? = null
-    
+    lateinit var navigationHost: NavigationHost
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        val parent = parentFragment
+        if (parent is FragmentA) {
+            parent.navigationHost.let { host ->
+                settNavigationHost(host)
+            }
+        }
+    }
+
     // Реактивное состояние для обновления UI
     private val backStackDepthState = mutableStateOf(0)
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         return ComposeView(requireContext()).apply {
             setContent {
@@ -45,10 +57,10 @@ class FragmentB : Fragment() {
                     onOpenAnotherB = {
                         navigationHost?.navigateTo(
                             com.github.navigationapp.navigation.Screen.ScreenB(
-                                recursionDepth = recursionDepth + 1
-                            )
+                                recursionDepth = recursionDepth + 1,
+                            ),
                         )
-                    }
+                    },
                 )
             }
         }
@@ -63,7 +75,7 @@ class FragmentB : Fragment() {
     /**
      * Метод вызывается родителем для передачи NavigationHost
      */
-    fun setNavigationHost(host: NavigationHost) {
+    fun settNavigationHost(host: NavigationHost) {
         this.navigationHost = host
         updateBackStackDepth()
     }
@@ -76,7 +88,7 @@ class FragmentB : Fragment() {
 
     companion object {
         private const val ARG_RECURSION_DEPTH = "recursion_depth"
-        
+
         fun newInstance(recursionDepth: Int = 0): FragmentB {
             return FragmentB().apply {
                 arguments = Bundle().apply {

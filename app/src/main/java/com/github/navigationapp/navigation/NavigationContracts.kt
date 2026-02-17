@@ -4,39 +4,26 @@ enum class NavigationType {
     FRAGMENT_MANAGER,
     JETPACK,
     CICERONE,
-    CONDUCTOR
+//    CONDUCTOR
 }
 
-/**
- * Базовый интерфейс для всех экранов приложения
- */
 sealed interface Screen {
+    val tag: String
 
-    /**
-     * Экран A - главный экран с селектором навигации
-     * @param isNested - флаг, указывающий что это вложенный экземпляр внутри FragmentC
-     */
     data class ScreenA(
-        val isNested: Boolean = false,
+        val isNested: Boolean = false, override val tag: String = "ScreenA",
     ) : Screen
 
-    /**
-     * Экран B - рекурсивный экран
-     * @param recursionDepth - глубина рекурсии, передаваемая через Bundle
-     */
     data class ScreenB(
-        val recursionDepth: Int = 0,
+        val recursionDepth: Int = 0, override val tag: String = "ScreenB",
     ) : Screen
 
-    /**
-     * Экран C - экран с вложенным контейнером для ScreenA
-     */
-    object ScreenC : Screen
+    object ScreenC : Screen {
+        override val tag: String
+            get() = "ScreenC"
+    }
 }
 
-/**
- * Callback для уведомления о закрытии вложенного экрана
- */
 interface NestedNavigationCallback {
     fun onNestedScreenClosed()
 }

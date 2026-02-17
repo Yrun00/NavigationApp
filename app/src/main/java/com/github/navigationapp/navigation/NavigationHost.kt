@@ -1,14 +1,24 @@
 package com.github.navigationapp.navigation
 
+import android.content.Context
 import androidx.annotation.IdRes
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph
+import androidx.navigation.NavGraphNavigator
+import androidx.navigation.fragment.FragmentNavigator
+import com.github.navigationapp.R
+import com.github.navigationapp.navigation.NavigationControllers.CiceroneNavigationController
+import com.github.navigationapp.navigation.NavigationControllers.FragmentManagerNavigationController
+import com.github.navigationapp.navigation.NavigationControllers.JetpackNavigationController
+import com.github.terrakok.cicerone.Router
 
 /**
  * NavigationHost - управляет навигацией внутри фрагмента
- * 
+ *
  * Ключевые возможности:
  * - Создание и управление NavigationController
  * - Смена типа навигации динамически
@@ -19,25 +29,27 @@ class NavigationHost(
     private val fragment: Fragment,
     @IdRes private val containerId: Int,
     private val factory: NavigationControllerFactory,
-    private val onEmptyBackStack: () -> Unit = {}
+    private val onEmptyBackStack: () -> Unit = {},
 ) {
     private var currentController: NavigationController? = null
-    private var currentType: NavigationType = NavigationType.JETPACK
-    
+    private var currentType: NavigationType = NavigationType.FRAGMENT_MANAGER
+
     init {
         // Инициализируем с типом по умолчанию
-        switchNavigationType(NavigationType.JETPACK)
-        
+        switchNavigationType(NavigationType.FRAGMENT_MANAGER)
+
         // Следим за жизненным циклом фрагмента
-        fragment.lifecycle.addObserver(object : LifecycleEventObserver {
-            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-                if (event == Lifecycle.Event.ON_DESTROY) {
-                    dispose()
+        fragment.lifecycle.addObserver(
+            object : LifecycleEventObserver {
+                override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+                    if (event == Lifecycle.Event.ON_DESTROY) {
+                        dispose()
+                    }
                 }
-            }
-        })
+            },
+        )
     }
-    
+
     /**
      * Переключение типа навигации
      * Очищает текущий backstack и создает новый контроллер
@@ -46,28 +58,22 @@ class NavigationHost(
         if (currentType == type && currentController != null) {
             return // Уже используется этот тип
         }
-        
-        // Очищаем старый контроллер
-        currentController?.let {
-            it.clearBackStack()
-            it.dispose()
-        }
-        
+
         currentType = type
         currentController = factory.createController(
             type = type,
             fragment = fragment,
-            containerId = containerId
+            containerId = containerId,
         )
     }
-    
+
     /**
      * Навигация на экран
      */
     fun navigateTo(screen: Screen) {
         currentController?.navigateTo(screen)
     }
-    
+
     /**
      * Возврат на предыдущий экран
      * Если backstack пуст, вызывает onEmptyBackStack callback
@@ -79,25 +85,56 @@ class NavigationHost(
         }
         return result
     }
-    
+
     /**
      * Получение размера backstack
      */
     fun getBackStackSize(): Int {
         return currentController?.getBackStackSize() ?: 0
     }
-    
+
     /**
      * Получение текущего типа навигации
      */
     fun getCurrentType(): NavigationType = currentType
-    
+
     /**
      * Освобождение ресурсов
      */
     private fun dispose() {
-        currentController?.dispose()
         currentController = null
+    }
+    fun createInnerNavGraph(
+        navController: NavController,
+        context: Context
+    ): NavGraph {
+        val provider = navController.navigatorProvider
+        val fragmentNavigator = provider.getNavigator(FragmentNavigator::class.java)
+        val graphNavigator = provider.getNavigator(NavGraphNavigator::class.java)
+
+        val graph = NavGraph(graphNavigator).apply {
+            id = R.id.nav_graph_inner
+        }
+
+        val destA = fragmentNavigator.createDestination().apply {
+            id = R.id.screenA
+            route = "ScreenA"
+        }
+
+        val destB = fragmentNavigator.createDestination().apply {
+            id = R.id.screenB
+            route = "ScreenB"
+        }
+
+        val destC = fragmentNavigator.createDestination().apply {
+            id = R.id.screenC
+            route = "ScreenC"
+        }
+
+        graph.addDestination(destA)
+        graph.addDestination(destB)
+        graph.addDestination(destC)
+        return graph
     }
 }
 
@@ -105,43 +142,46 @@ class NavigationHost(
  * Фабрика для создания NavigationController разных типов
  */
 class NavigationControllerFactory(
-    private val fragmentFactory: FragmentFactory
+    private val fragmentFactory: FragmentFactory,
+    private val navController: NavController,
+    private val router: Router,
 ) {
-    
+
     fun createController(
         type: NavigationType,
         fragment: Fragment,
-        @IdRes containerId: Int
+        @IdRes containerId: Int,
     ): NavigationController {
         return when (type) {
             NavigationType.FRAGMENT_MANAGER -> {
                 FragmentManagerNavigationController(
                     fragmentManager = fragment.childFragmentManager,
                     containerId = containerId,
-                    fragmentFactory = fragmentFactory
+                    fragmentFactory = fragmentFactory,
                 )
             }
+
             NavigationType.JETPACK -> {
                 JetpackNavigationController(
-                    fragment = fragment,
-                    containerId = containerId,
-                    fragmentFactory = fragmentFactory
+                    navController = navController,
                 )
             }
+
             NavigationType.CICERONE -> {
                 CiceroneNavigationController(
-                    fragment = fragment,
-                    containerId = containerId,
-                    fragmentFactory = fragmentFactory
+                    router = router,
+                    fragmentManager = fragment.childFragmentManager,
+                    fragmentFactory = fragmentFactory,
                 )
             }
-            NavigationType.CONDUCTOR -> {
-                ConductorNavigationController(
-                    fragment = fragment,
-                    containerId = containerId,
-                    fragmentFactory = fragmentFactory
-                )
-            }
+
+//            NavigationType.CONDUCTOR -> {
+//                ConductorNavigationController(
+//                    fragment = fragment,
+//                    containerId = containerId,
+//                    fragmentFactory = fragmentFactory,
+//                )
+//            }
         }
     }
 }

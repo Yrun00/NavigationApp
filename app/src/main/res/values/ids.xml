@@ -4,4 +4,5 @@
     <item name="root_fragment_container" type="id" />
     <item name="fragment_a_container" type="id" />
     <item name="nested_fragment_container" type="id" />
+    <item name="nav_graph_inner" type="id" />
 </resources>

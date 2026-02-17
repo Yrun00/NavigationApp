@@ -1,5 +1,6 @@
 package com.github.navigationapp.fragments
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -13,7 +14,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 /**
  * FragmentC - экран с вложенным контейнером для ScreenA
- * 
+ *
  * Особенности:
  * - Содержит Box с отступами (через XML)
  * - Внутри Box размещен вложенный экземпляр FragmentA
@@ -22,13 +23,21 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class FragmentC : Fragment() {
 
-    private var parentNavigationHost: NavigationHost? = null
-    
+    lateinit var parentNavigationHost: NavigationHost
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        val parent = parentFragment
+        if (parent is FragmentA) {
+            settParentNavigationHost(parent.navigationHost)
+        }
+    }
+
     private val backPressedCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
             // FragmentC просто закрывается, навигация внутри вложенного A
             // обрабатывается самим FragmentA
-            parentNavigationHost?.goBack()
+            parentNavigationHost.goBack()
         }
     }
 
@@ -40,7 +49,7 @@ class FragmentC : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View? {
         // Используем XML layout с контейнером для вложенного фрагмента
         return inflater.inflate(R.layout.fragment_c, container, false)
@@ -48,20 +57,22 @@ class FragmentC : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
         // Создаем вложенный FragmentA только при первом создании
         if (savedInstanceState == null) {
             // Создаем вложенный FragmentA
             val nestedFragmentA = FragmentA.newInstance(isNested = true)
-            
+
             // Устанавливаем callback для уведомления о закрытии
-            nestedFragmentA.setNestedCallback(object : NestedNavigationCallback {
-                override fun onNestedScreenClosed() {
-                    // Закрываем FragmentC через родительскую навигацию
-                    parentNavigationHost?.goBack()
-                }
-            })
-            
+            nestedFragmentA.setNestedCallback(
+                object : NestedNavigationCallback {
+                    override fun onNestedScreenClosed() {
+                        // Закрываем FragmentC через родительскую навигацию
+                        parentNavigationHost?.goBack()
+                    }
+                },
+            )
+
             // Добавляем вложенный фрагмент
             childFragmentManager.beginTransaction()
                 .replace(R.id.nested_fragment_container, nestedFragmentA)
@@ -72,7 +83,7 @@ class FragmentC : Fragment() {
     /**
      * Метод вызывается родителем для передачи NavigationHost
      */
-    fun setParentNavigationHost(host: NavigationHost) {
+    fun settParentNavigationHost(host: NavigationHost) {
         this.parentNavigationHost = host
     }
 
