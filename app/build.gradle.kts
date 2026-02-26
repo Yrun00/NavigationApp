@@ -4,6 +4,7 @@ plugins {
 
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
+    id("kotlin-parcelize")
 }
 
 android {
@@ -62,10 +63,9 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.hilt.android)
     ksp(libs.hilt.android.compiler)
     implementation(libs.cicerone)
-    implementation(libs.conductor)
-
+    implementation(libs.simple.stack)
+    implementation(libs.simple.stack.extensions)
 }

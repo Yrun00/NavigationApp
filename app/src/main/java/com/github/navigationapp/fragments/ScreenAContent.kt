@@ -27,8 +27,8 @@ import com.github.navigationapp.navigation.*
 @Composable
 fun ScreenAContent(
     isNested: Boolean,
-    currentNavigationType: NavigationType,
-    onNavigationTypeSelected: (NavigationType) -> Unit,
+    currentNavigationType: NavigationMethod,
+    onNavigationTypeSelected: (NavigationMethod) -> Unit,
     onNavigateToB: () -> Unit,
     onNavigateToC: () -> Unit
 ) {
@@ -82,8 +82,8 @@ fun ScreenAContent(
         )
         
         Spacer(modifier = Modifier.height(8.dp))
-        
-        NavigationType.entries.forEach { type ->
+
+        NavigationMethod.entries.forEach { type ->
             val isSelected = currentNavigationType == type
             Button(
                 onClick = { onNavigationTypeSelected(type) },

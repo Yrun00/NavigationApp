@@ -1,34 +1,18 @@
-<?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/screenA">
+    app:startDestination="@id/screenAFragment">
 
     <fragment
-        android:id="@+id/screenA"
-        android:name="com.github.navigationapp.fragments.FragmentA"
-        android:label="Screen A" />
+        android:id="@+id/screenAFragment"
+        android:name="com.github.navigationapp.fragments.ScreenAFragment" />
 
     <fragment
-        android:id="@+id/screenB"
-        android:name="com.github.navigationapp.fragments.FragmentB"
-        android:label="Screen B" />
+        android:id="@+id/screenBFragment"
+        android:name="com.github.navigationapp.fragments.ScreenBFragment" />
 
     <fragment
-        android:id="@+id/screenC"
-        android:name="com.github.navigationapp.fragments.FragmentC"
-        android:label="Screen C" />
-
-    <action
-        android:id="@+id/action_screenA_to_screenB"
-        app:destination="@id/screenB" />
-
-    <action
-        android:id="@+id/action_screenA_to_screenC"
-        app:destination="@id/screenC" />
-
-    <action
-        android:id="@+id/action_screenB_to_screenB"
-        app:destination="@id/screenB" />
+        android:id="@+id/screenCFragment"
+        android:name="com.github.navigationapp.fragments.ScreenCFragment" />
 
 </navigation>

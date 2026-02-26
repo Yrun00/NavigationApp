@@ -1,41 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#64B5F6"
-    android:padding="16dp">
+    android:background="#FF64B5F6">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Screen C"
-        android:textSize="28sp"
-        android:textColor="@android:color/white"
-        android:layout_gravity="center_horizontal"
-        android:padding="16dp" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Box with nested Screen A inside:"
-        android:textSize="14sp"
-        android:textColor="#CCFFFFFF"
-        android:layout_gravity="center_horizontal"
-        android:paddingBottom="8dp" />
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/compose_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
     <FrameLayout
+        android:id="@+id/nested_fragment_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:padding="16dp"
-        android:background="#1AFFFFFF">
+        android:layout_marginTop="80dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:background="#1AFFFFFF"
+        android:outlineProvider="bounds"
+        android:elevation="2dp" />
 
-        <FrameLayout
-            android:id="@+id/nested_fragment_container"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@android:color/transparent" />
-
-    </FrameLayout>
-
-</LinearLayout>
+</FrameLayout>
