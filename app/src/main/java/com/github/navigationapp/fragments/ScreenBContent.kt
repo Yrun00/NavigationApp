@@ -29,7 +29,7 @@ fun ScreenBContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF81C784)) // Зеленый фон
+            .background(Color(0xFF81C784))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -41,7 +41,6 @@ fun ScreenBContent(
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        // Счетчик глубины из Bundle (прямая рекурсия)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -70,7 +69,6 @@ fun ScreenBContent(
             }
         }
 
-        // Счетчик глубины BackStack
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -101,7 +99,6 @@ fun ScreenBContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Кнопка рекурсивного открытия
         Button(
             onClick = onOpenAnotherB,
             modifier = Modifier.fillMaxWidth(),

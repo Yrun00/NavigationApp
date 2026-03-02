@@ -6,7 +6,7 @@ import com.github.terrakok.cicerone.Router
 
 class CiceroneRouter(
     private val router: Router,
-    private val fragmentManager: FragmentManager
+    private val fragmentManager: FragmentManager,
 ) : NavigationRouter {
 
     override fun navigateTo(key: ScreenKey) {

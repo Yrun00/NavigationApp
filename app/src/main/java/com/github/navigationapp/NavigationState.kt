@@ -23,8 +23,6 @@ class NavigationState(val level: Int, parentState: NavigationState? = null) {
     )
     val method: StateFlow<NavigationMethod> = _method.asStateFlow()
 
-    // commands — УДАЛЕНО
-
     val cicerone: Cicerone<Router> by lazy { Cicerone.create() }
     val ciceroneRouter: Router get() = cicerone.router
 
@@ -33,7 +31,6 @@ class NavigationState(val level: Int, parentState: NavigationState? = null) {
             it.setup(History.single(ScreenKey.A(nestingLevel = level)))
         }
     }
-
 
     fun push(key: ScreenKey) = _stack.update { it + key }
 
@@ -45,10 +42,6 @@ class NavigationState(val level: Int, parentState: NavigationState? = null) {
 
     fun switchMethod(newMethod: NavigationMethod) {
         _method.value = newMethod
-    }
-
-    fun reset() {
-        _stack.value = listOf(ScreenKey.A(nestingLevel = level))
     }
 
     fun dispose() {

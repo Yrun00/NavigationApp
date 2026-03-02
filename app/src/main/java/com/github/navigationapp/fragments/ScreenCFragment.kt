@@ -16,10 +16,8 @@ import com.github.navigationapp.navigation.navigationControllers.NoAnimFragmentS
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
-import dagger.hilt.android.AndroidEntryPoint
 
 
-@AndroidEntryPoint
 class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
 
     private val viewModel: NavigationViewModel by activityViewModels()
@@ -42,7 +40,6 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Каждый раз новый delegate со свежим viewLifecycleOwner
         delegate = NavigationHostDelegate(
             fragmentManager = childFragmentManager,
             containerId = R.id.nested_fragment_container,

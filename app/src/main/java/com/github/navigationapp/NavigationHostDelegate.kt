@@ -42,8 +42,6 @@ class NavigationHostDelegate(
         val currentMethod = viewModel.state(level).method.value
 
         when {
-            // needsReplay ПЕРВЫМ: покрывает и ротацию (savedState != null),
-            // и новый C созданный в цепочке replay (savedState = null)
             viewModel.needsReplay -> {
                 replayLevel()
             }
@@ -54,7 +52,6 @@ class NavigationHostDelegate(
             }
 
             else -> {
-                // Обычная ротация без смены метода — FM сам восстановил фрагменты
                 activateRouter(currentMethod)
             }
         }
@@ -133,33 +130,16 @@ class NavigationHostDelegate(
     private fun replayLevel() {
         val currentMethod = viewModel.state(level).method.value
         val entries = viewModel.entriesForLevel(level)
-
-        // Шаг 1: Полностью чистим контейнер
         clearContainerForReplay()
-
-        // Шаг 2: SimpleStack — сбросить историю ДО attach state changer,
-        // иначе setStateChanger() сразу выстрелит со старой историей
         if (currentMethod == NavigationMethod.SIMPLE_STACK) {
             viewModel.state(level).simpleBackstack.setHistory(
                 History.single(ScreenKey.A(nestingLevel = level)),
                 StateChange.REPLACE,
             )
         }
-
-        // Шаг 3: Активируем роутер
-        // Для SS: setStateChanger() → начальный state change [A] → показывает ScreenAFragment
-        // Для Cicerone: setNavigator()
         activateRouter(currentMethod)
-
-        // Шаг 4: Для FM/Cicerone/Jetpack: вручную размещаем начальный A
-        // (SS уже показал A через state changer в шаге 3)
         setupInitialScreen(currentMethod)
         fragmentManager.executePendingTransactions()
-
-        // Шаг 5: Воспроизводим записанный путь
-        // executePendingTransactions() после каждого шага — гарантирует, что
-        // ScreenCFragment.onViewCreated → initialize(needsReplay=true) → replayLevel(level+1)
-        // отработает синхронно до того, как мы вернёмся наверх
         for (entry in entries) {
             router.navigateTo(entry.key)
             fragmentManager.executePendingTransactions()
@@ -168,13 +148,8 @@ class NavigationHostDelegate(
     }
 
     private fun clearContainerForReplay() {
-        // Удаляем NavHostFragment (Jetpack)
         routerFactory.removeNavHostIfPresent()
-
-        // Удаляем фрагменты из FM back stack (FM + Cicerone)
         fragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
-
-        // Удаляем фрагменты SimpleStack — они не в back stack, но всё ещё в контейнере
         val stranded = fragmentManager.fragments
             .filter { it.id == containerId && !it.isRemoving }
         if (stranded.isNotEmpty()) {
@@ -204,6 +179,7 @@ class NavigationHostDelegate(
                 viewModel.state(level).cicerone.getNavigatorHolder().removeNavigator()
                 router.clear()
             }
+
             NavigationMethod.SIMPLE_STACK -> {
                 viewModel.state(level).simpleBackstack.detachStateChanger()
                 router.clear()
@@ -213,9 +189,11 @@ class NavigationHostDelegate(
                     fragmentManager.commitNow { stranded.forEach { remove(it) } }
                 }
             }
+
             NavigationMethod.JETPACK -> {
                 routerFactory.removeNavHostIfPresent()
             }
+
             NavigationMethod.FRAGMENT_MANAGER -> {
                 router.clear()
             }
@@ -224,7 +202,7 @@ class NavigationHostDelegate(
         if (to == NavigationMethod.SIMPLE_STACK) {
             viewModel.state(level).simpleBackstack.setHistory(
                 History.single(ScreenKey.A(nestingLevel = level)),
-                StateChange.REPLACE
+                StateChange.REPLACE,
             )
         }
 
@@ -233,16 +211,13 @@ class NavigationHostDelegate(
         fragmentManager.executePendingTransactions()
     }
 
-
     fun handleBack(): Boolean {
         val handled = router.back()
         if (handled) {
             viewModel.pop(level)
             return true
         }
-
         onEmptyStack()
         return false
     }
-
 }

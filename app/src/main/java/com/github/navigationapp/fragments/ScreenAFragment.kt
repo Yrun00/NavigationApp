@@ -1,7 +1,6 @@
 package com.github.navigationapp.fragments
 
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,9 +13,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.github.navigationapp.NavigationViewModel
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
-import dagger.hilt.android.AndroidEntryPoint
 
-@AndroidEntryPoint
 class ScreenAFragment : Fragment() {
 
     private val viewModel: NavigationViewModel by activityViewModels()
@@ -31,7 +28,7 @@ class ScreenAFragment : Fragment() {
     ): View = ComposeView(requireContext()).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
-            val nestingLevel = nestingLevel  // ← лог сюда!
+            val nestingLevel = nestingLevel
 
             val currentMethod by viewModel.state(nestingLevel).method.collectAsState()
 
@@ -50,7 +47,7 @@ class ScreenAFragment : Fragment() {
                     val key = ScreenKey.C(hostingLevel = nestingLevel + 1)
                     viewModel.push(nestingLevel, key)
                     findNavigationHost().navigateTo(key)
-                }
+                },
             )
         }
     }

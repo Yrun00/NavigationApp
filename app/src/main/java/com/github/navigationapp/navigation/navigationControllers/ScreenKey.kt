@@ -21,8 +21,8 @@ sealed class ScreenKey : DefaultFragmentKey() {
 
     fun tag(): String = when (this) {
         is A -> "screen_a"
-        is B -> "screen_b_$depth"       // depth уже уникален в рамках одного FM
-        is C -> "screen_c_$hostingLevel" // hostingLevel нужен — C-в-C в одном FM
+        is B -> "screen_b_$depth"
+        is C -> "screen_c_$hostingLevel"
     }
 
     override fun getFragmentTag(): String = tag()
@@ -41,7 +41,7 @@ sealed class ScreenKey : DefaultFragmentKey() {
 
     fun toBundle(): Bundle = when (this) {
         is A -> bundleOf(
-            ScreenAFragment.ARG_NESTING_LEVEL to nestingLevel  // ← используем константу из фрагмента
+            ScreenAFragment.ARG_NESTING_LEVEL to nestingLevel
         )
         is B -> bundleOf(
             ScreenBFragment.ARG_DEPTH to depth,

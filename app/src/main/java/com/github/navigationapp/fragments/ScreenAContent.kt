@@ -30,7 +30,7 @@ fun ScreenAContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFE57373)) // Красный фон
+            .background(Color(0xFFE57373))
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -44,7 +44,6 @@ fun ScreenAContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Кнопки навигации
         Button(
             onClick = onNavigateToB,
             modifier = Modifier.fillMaxWidth(),

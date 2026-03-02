@@ -4,16 +4,14 @@ import android.os.Bundle
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import com.github.navigationapp.fragments.AppFragmentFactory
 import com.github.navigationapp.navigation.NavigationHost
 import com.github.navigationapp.navigation.navigationControllers.NoAnimFragmentStateChanger
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
-import dagger.hilt.android.AndroidEntryPoint
 
 
-@AndroidEntryPoint
+
 class MainActivity : AppCompatActivity(), NavigationHost {
 
     private val viewModel: NavigationViewModel by viewModels()
@@ -46,7 +44,6 @@ class MainActivity : AppCompatActivity(), NavigationHost {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        supportFragmentManager.fragmentFactory = AppFragmentFactory()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         delegate.initialize(savedInstanceState, this)  // Activity — lifecycleOwner сам

@@ -12,10 +12,9 @@ import com.github.navigationapp.navigation.NavigationMethod
 class RouterFactory(
     private val fragmentManager: FragmentManager,
     @IdRes private val containerId: Int,
-    private val level: Int,           // нужен для уникального тега NavHost
+    private val level: Int,
     private val state: NavigationState,
 ) {
-    // Тег NavHostFragment уникален на каждый уровень
     private val navHostTag = "nav_host_$level"
 
     fun create(method: NavigationMethod): NavigationRouter = when (method) {
@@ -50,9 +49,9 @@ class RouterFactory(
 
     private fun ensureNavHostFragment() {
         if (fragmentManager.findFragmentByTag(navHostTag) != null) return
-        val startArgs = ScreenKey.A(nestingLevel = level).toBundle()  // ← nestingLevel из level
+        val startArgs = ScreenKey.A(nestingLevel = level).toBundle()
         val navHostFragment = NavHostFragment.create(R.navigation.nav_graph, startArgs)
-        fragmentManager.commitNow {  // ← commitNow, не commit
+        fragmentManager.commitNow {
             setReorderingAllowed(true)
             replace(containerId, navHostFragment, navHostTag)
         }

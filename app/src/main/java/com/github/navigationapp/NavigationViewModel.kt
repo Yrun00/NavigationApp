@@ -59,19 +59,14 @@ class NavigationViewModel : ViewModel() {
 
     fun closeLevel(level: Int) {
         val parentState = _states[level - 1]
-
         _states[level]?.dispose()
         _states.remove(level)
-
-        // Срезаем хвост начиная с ScreenKey.C, который открыл этот уровень.
-        // Это ровно последний C(hostingLevel = level) в стеке.
         val cutIndex = _replayStack.indexOfLast {
             it.key is ScreenKey.C && (it.key as ScreenKey.C).hostingLevel == level
         }
         if (cutIndex >= 0) {
             _replayStack.subList(cutIndex, _replayStack.size).clear()
         }
-
         parentState?.pop()
         updateNeedsReplay()
     }

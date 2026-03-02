@@ -13,18 +13,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.github.navigationapp.NavigationViewModel
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
-import dagger.hilt.android.AndroidEntryPoint
 
-/**
- * FragmentB - рекурсивный экран
- *
- * Особенности:
- * - Получает recursionDepth из Bundle (передается в аргументах)
- * - Вычисляет глубину backstack через NavigationHost родителя
- * - Может открывать новый экземпляр FragmentB с depth + 1
- * - Считает только прямую рекурсию (B -> B -> B)
- */
-@AndroidEntryPoint
+
 class ScreenBFragment : Fragment() {
 
     private val viewModel: NavigationViewModel by activityViewModels()
@@ -42,12 +32,10 @@ class ScreenBFragment : Fragment() {
     ): View = ComposeView(requireContext()).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
+
             val stack by viewModel.state(nestingLevel).stack.collectAsState()
 
-            // Прямая рекурсия — только непрерывный хвост из B
-            val backStackDepth = stack
-                .takeLastWhile { it is ScreenKey.B }
-                .size - 1
+            val backStackDepth = stack.takeLastWhile { it is ScreenKey.B }.size - 1
 
             ScreenBContent(
                 recursionDepthFromBundle = depthFromBundle,
@@ -56,7 +44,7 @@ class ScreenBFragment : Fragment() {
                     val key = ScreenKey.B(depth = depthFromBundle + 1, nestingLevel = nestingLevel)
                     viewModel.push(nestingLevel, key)
                     findNavigationHost().navigateTo(key)
-                }
+                },
             )
         }
     }
@@ -68,7 +56,7 @@ class ScreenBFragment : Fragment() {
         fun newInstance(depth: Int, nestingLevel: Int = 0) = ScreenBFragment().apply {
             arguments = bundleOf(
                 ARG_DEPTH to depth,
-                ARG_NESTING_LEVEL to nestingLevel
+                ARG_NESTING_LEVEL to nestingLevel,
             )
         }
     }

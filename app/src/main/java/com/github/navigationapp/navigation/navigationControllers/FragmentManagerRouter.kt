@@ -7,7 +7,7 @@ import androidx.fragment.app.commit
 
 class FragmentManagerRouter(
     private val fragmentManager: FragmentManager,
-    @IdRes private val containerId: Int
+    @IdRes private val containerId: Int,
 ) : NavigationRouter {
 
     override fun navigateTo(key: ScreenKey) {
