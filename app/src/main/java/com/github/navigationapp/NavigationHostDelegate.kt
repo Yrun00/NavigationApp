@@ -22,7 +22,6 @@ class NavigationHostDelegate(
     @IdRes private val containerId: Int,
     private val level: Int,
     private val viewModel: NavigationViewModel,
-    private val lifecycleOwner: LifecycleOwner,
     private val getCiceroneNavigator: () -> AppNavigator,
     private val getSimpleStateChanger: () -> StateChanger,
     private val onEmptyStack: () -> Unit,  // finish() или closeThisLevel()
@@ -71,7 +70,9 @@ class NavigationHostDelegate(
                 viewModel.state(level).cicerone
                     .getNavigatorHolder().setNavigator(getCiceroneNavigator())
 
-            NavigationMethod.SIMPLE_STACK -> Unit  // ← ничего не делаем, setStateChanger уже вызван в initialize
+            NavigationMethod.SIMPLE_STACK ->  // ← раньше было Unit
+                viewModel.state(level).simpleBackstack
+                    .setStateChanger(getSimpleStateChanger())
 
             else -> Unit
         }

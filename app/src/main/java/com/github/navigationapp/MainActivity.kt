@@ -24,7 +24,6 @@ class MainActivity : AppCompatActivity(), NavigationHost {
             containerId = R.id.root_fragment_container,
             level = 0,
             viewModel = viewModel,
-            lifecycleOwner = this,
             getCiceroneNavigator = { ciceroneNavigator },
             getSimpleStateChanger = { simpleStateChanger },
             onEmptyStack = { finish() },

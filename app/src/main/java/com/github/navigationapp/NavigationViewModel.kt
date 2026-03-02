@@ -16,7 +16,7 @@ class NavigationViewModel : ViewModel() {
     fun state(level: Int): NavigationState =
         _states.getOrPut(level) {
             val parent = if (level > 0) state(level - 1) else null
-            NavigationState(level = level, parentState = _states[level - 1])
+            NavigationState(level = level, parentState = parent)
         }
 
     private val _replayStack = mutableListOf<NavEntry>()
