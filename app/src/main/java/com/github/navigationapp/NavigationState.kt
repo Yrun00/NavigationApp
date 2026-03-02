@@ -2,6 +2,7 @@ package com.github.navigationapp
 
 import com.github.navigationapp.navigation.NavigationMethod
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
+import com.github.navigationapp.navigation.navigationControllers.SimpleStackRouter
 import com.github.terrakok.cicerone.Cicerone
 import com.github.terrakok.cicerone.Router
 import com.zhuinden.simplestack.Backstack
@@ -12,28 +13,27 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class NavigationState(parentState: NavigationState? = null) {
+class NavigationState(val level: Int, parentState: NavigationState? = null) {
 
-    private val _stack = MutableStateFlow<List<ScreenKey>>(listOf(ScreenKey.A(0)))
+    private val _stack = MutableStateFlow<List<ScreenKey>>(listOf(ScreenKey.A(nestingLevel = level)))
     val stack: StateFlow<List<ScreenKey>> = _stack.asStateFlow()
 
-    // Наследуем метод от родительского уровня — пользователю не нужно выбирать заново
     private val _method = MutableStateFlow(
         parentState?.method?.value ?: NavigationMethod.FRAGMENT_MANAGER
     )
     val method: StateFlow<NavigationMethod> = _method.asStateFlow()
 
-    val commands = MutableSharedFlow<ScreenKey>(extraBufferCapacity = 1)
+    // commands — УДАЛЕНО
 
-    // Lazy — создаётся только если этот уровень переключится на CICERONE
     val cicerone: Cicerone<Router> by lazy { Cicerone.create() }
     val ciceroneRouter: Router get() = cicerone.router
 
-    // Lazy — создаётся только если этот уровень переключится на SIMPLE_STACK
-    // Живёт в ViewModel, а не в Fragment — переживает ротацию без BackstackDelegate
     val simpleBackstack: Backstack by lazy {
-        Backstack().also { it.setup(History.single(ScreenKey.A(nestingLevel = 0))) }
+        Backstack().also {
+            it.setup(History.single(ScreenKey.A(nestingLevel = level)))
+        }
     }
+
 
     fun push(key: ScreenKey) = _stack.update { it + key }
 
@@ -48,6 +48,13 @@ class NavigationState(parentState: NavigationState? = null) {
     }
 
     fun reset() {
-        _stack.value = listOf(ScreenKey.A(nestingLevel = 0))
+        _stack.value = listOf(ScreenKey.A(nestingLevel = level))
+    }
+
+    fun dispose() {
+        if (simpleBackstack.isInitialized) {
+            simpleBackstack.detachStateChanger()
+        }
     }
 }
+

@@ -1,6 +1,7 @@
 package com.github.navigationapp.fragments
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,6 +31,9 @@ class ScreenAFragment : Fragment() {
     ): View = ComposeView(requireContext()).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
+            val nestingLevel = nestingLevel  // ← лог сюда!
+            Log.d("SCREEN_A", "nestingLevel=$nestingLevel, method=${viewModel.state(nestingLevel).method.value}")
+
             val currentMethod by viewModel.state(nestingLevel).method.collectAsState()
 
             ScreenAContent(
@@ -39,26 +43,26 @@ class ScreenAFragment : Fragment() {
                     viewModel.switchMethod(nestingLevel, it)
                 },
                 onNavigateToB = {
-                    viewModel.navigateTo(
-                        level = nestingLevel,
-                        key = ScreenKey.B(depth = 0, nestingLevel = nestingLevel)
-                    )
+                    val key = ScreenKey.B(depth = 0, nestingLevel = nestingLevel)
+                    viewModel.push(nestingLevel, key)
+                    findNavigationHost().navigateTo(key)
                 },
                 onNavigateToC = {
-                    viewModel.navigateTo(
-                        level = nestingLevel,
-                        key = ScreenKey.C(hostingLevel = nestingLevel + 1)
-                    )
+                    val key = ScreenKey.C(hostingLevel = nestingLevel + 1)
+                    viewModel.push(nestingLevel, key)
+                    findNavigationHost().navigateTo(key)
                 }
             )
         }
     }
 
     companion object {
-        private const val ARG_NESTING_LEVEL = "nesting_level"
+        const val ARG_NESTING_LEVEL = "nesting_level"
 
         fun newInstance(nestingLevel: Int = 0) = ScreenAFragment().apply {
             arguments = bundleOf(ARG_NESTING_LEVEL to nestingLevel)
         }
     }
 }
+
+

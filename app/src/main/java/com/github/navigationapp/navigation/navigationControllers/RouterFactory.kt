@@ -3,6 +3,7 @@ package com.github.navigationapp.navigation.navigationControllers
 import androidx.annotation.IdRes
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
+import androidx.fragment.app.commitNow
 import androidx.navigation.fragment.NavHostFragment
 import com.github.navigationapp.NavigationState
 import com.github.navigationapp.R
@@ -49,11 +50,12 @@ class RouterFactory(
 
     private fun ensureNavHostFragment() {
         if (fragmentManager.findFragmentByTag(navHostTag) != null) return
-        val navHostFragment = NavHostFragment.create(R.navigation.nav_graph)
-        fragmentManager.commit {
+        val startArgs = ScreenKey.A(nestingLevel = level).toBundle()  // ← nestingLevel из level
+        val navHostFragment = NavHostFragment.create(R.navigation.nav_graph, startArgs)
+        fragmentManager.commitNow {  // ← commitNow, не commit
+            setReorderingAllowed(true)
             replace(containerId, navHostFragment, navHostTag)
         }
-        fragmentManager.executePendingTransactions()
     }
 
     private fun requireNavHostFragment(): NavHostFragment =

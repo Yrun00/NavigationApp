@@ -1,5 +1,6 @@
 package com.github.navigationapp.navigation.navigationControllers
 
+import android.util.Log
 import androidx.fragment.app.FragmentManager
 import com.github.terrakok.cicerone.Router
 
@@ -9,6 +10,7 @@ class CiceroneRouter(
 ) : NavigationRouter {
 
     override fun navigateTo(key: ScreenKey) {
+        Log.d("NAV", "CiceroneRouter.navigateTo: $key, navigatorHolder: ${this.router}")
         router.navigateTo(key.toCiceroneScreen())
     }
 

@@ -53,21 +53,17 @@ class ScreenBFragment : Fragment() {
                 recursionDepthFromBundle = depthFromBundle,
                 backStackDepth = backStackDepth,
                 onOpenAnotherB = {
-                    viewModel.navigateTo(
-                        level = nestingLevel,
-                        key = ScreenKey.B(
-                            depth = depthFromBundle + 1,
-                            nestingLevel = nestingLevel
-                        )
-                    )
+                    val key = ScreenKey.B(depth = depthFromBundle + 1, nestingLevel = nestingLevel)
+                    viewModel.push(nestingLevel, key)
+                    findNavigationHost().navigateTo(key)
                 }
             )
         }
     }
 
     companion object {
-        private const val ARG_DEPTH = "depth"
-        private const val ARG_NESTING_LEVEL = "nesting_level"
+        const val ARG_DEPTH = "depth"
+        const val ARG_NESTING_LEVEL = "nesting_level"
 
         fun newInstance(depth: Int, nestingLevel: Int = 0) = ScreenBFragment().apply {
             arguments = bundleOf(

@@ -39,7 +39,18 @@ sealed class ScreenKey : DefaultFragmentKey() {
         is C -> R.id.screenCFragment
     }
 
-    fun toBundle(): Bundle = bundleOf("screen_key" to this)
+    fun toBundle(): Bundle = when (this) {
+        is A -> bundleOf(
+            ScreenAFragment.ARG_NESTING_LEVEL to nestingLevel  // ← используем константу из фрагмента
+        )
+        is B -> bundleOf(
+            ScreenBFragment.ARG_DEPTH to depth,
+            ScreenBFragment.ARG_NESTING_LEVEL to nestingLevel
+        )
+        is C -> bundleOf(
+            ScreenCFragment.ARG_HOSTING_LEVEL to hostingLevel
+        )
+    }
 
     fun toCiceroneScreen(): FragmentScreen = FragmentScreen(key = tag()) {
         instantiateFragment().also { fragment ->
@@ -48,4 +59,5 @@ sealed class ScreenKey : DefaultFragmentKey() {
             }
         }
     }
+
 }
