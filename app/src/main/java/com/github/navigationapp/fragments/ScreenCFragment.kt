@@ -16,6 +16,7 @@ import com.github.navigationapp.navigation.navigationControllers.NoAnimFragmentS
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
+import kotlinx.coroutines.flow.StateFlow
 
 
 class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
@@ -57,6 +58,11 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
     }
 
     override fun navigateTo(key: ScreenKey) = delegate.navigateTo(key)
+    override fun observeBackStackDepth(): StateFlow<Int> {
+
+        return delegate.observeBackStackDepth()
+    }
+
     override fun onResume() {
         super.onResume()
         delegate.onResume()
@@ -78,8 +84,10 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
         when (viewModel.state(parentLevel).method.value) {
             NavigationMethod.SIMPLE_STACK ->
                 viewModel.state(parentLevel).simpleBackstack.goBack()
+
             NavigationMethod.JETPACK ->
                 findNavController().popBackStack()
+
             else ->
                 parentFragmentManager.popBackStack()
         }

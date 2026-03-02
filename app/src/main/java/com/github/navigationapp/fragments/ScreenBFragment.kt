@@ -33,9 +33,8 @@ class ScreenBFragment : Fragment() {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
 
-            val stack by viewModel.state(nestingLevel).stack.collectAsState()
-
-            val backStackDepth = stack.takeLastWhile { it is ScreenKey.B }.size - 1
+            val host = findNavigationHost()
+            val backStackDepth by host.observeBackStackDepth().collectAsState()
 
             ScreenBContent(
                 recursionDepthFromBundle = depthFromBundle,
@@ -43,7 +42,7 @@ class ScreenBFragment : Fragment() {
                 onOpenAnotherB = {
                     val key = ScreenKey.B(depth = depthFromBundle + 1, nestingLevel = nestingLevel)
                     viewModel.push(nestingLevel, key)
-                    findNavigationHost().navigateTo(key)
+                    host.navigateTo(key)
                 },
             )
         }

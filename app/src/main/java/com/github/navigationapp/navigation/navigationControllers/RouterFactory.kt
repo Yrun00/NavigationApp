@@ -4,6 +4,7 @@ import androidx.annotation.IdRes
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 import androidx.fragment.app.commitNow
+import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.github.navigationapp.NavigationState
 import com.github.navigationapp.R
@@ -38,6 +39,8 @@ class RouterFactory(
         NavigationMethod.SIMPLE_STACK -> SimpleStackRouter(state.simpleBackstack, level = level)
     }
 
+    fun getNavController(): NavController? =
+        (fragmentManager.findFragmentByTag(navHostTag) as? NavHostFragment)?.navController
     fun removeNavHostIfPresent() {
         fragmentManager.findFragmentByTag(navHostTag)?.let { navHost ->
             fragmentManager.commit {

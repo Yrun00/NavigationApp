@@ -1,5 +1,6 @@
 package com.github.navigationapp
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.annotation.IdRes
 import androidx.fragment.app.FragmentManager
@@ -16,7 +17,13 @@ import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.History
 import com.zhuinden.simplestack.StateChange
 import com.zhuinden.simplestack.StateChanger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class NavigationHostDelegate(
@@ -32,7 +39,10 @@ class NavigationHostDelegate(
     private lateinit var router: NavigationRouter
     private lateinit var routerFactory: RouterFactory
 
+    private lateinit var scope: CoroutineScope
+
     fun initialize(savedInstanceState: Bundle?, lifecycleOwner: LifecycleOwner) {
+        scope = lifecycleOwner.lifecycleScope
         routerFactory = RouterFactory(
             fragmentManager = fragmentManager,
             containerId = containerId,
@@ -62,6 +72,44 @@ class NavigationHostDelegate(
     override fun navigateTo(key: ScreenKey) {
         router.navigateTo(key)
     }
+
+
+    @SuppressLint("RestrictedApi")
+    override fun observeBackStackDepth(): StateFlow<Int> {
+        val state = viewModel.stateOrNull(level) ?: return MutableStateFlow(0)
+        return when (state.method.value) {
+            NavigationMethod.FRAGMENT_MANAGER,
+            NavigationMethod.CICERONE,
+                -> {
+                val flow = MutableStateFlow(fmConsecutiveBDepth())
+                fragmentManager.addOnBackStackChangedListener {
+                    flow.value = fmConsecutiveBDepth()
+                }
+                flow
+            }
+
+            NavigationMethod.SIMPLE_STACK ->
+                state.stack
+                    .map { stack -> stack.takeLastWhile { it is ScreenKey.B }.size - 1 }
+                    .stateIn(scope, SharingStarted.Eagerly, 0)
+
+            NavigationMethod.JETPACK ->
+                routerFactory.getNavController()!!
+                    .currentBackStack
+                    .map { entries ->
+                        entries.takeLastWhile {
+                            it.destination.id == R.id.screenBFragment
+                        }.size - 1
+                    }
+                    .stateIn(scope, SharingStarted.Eagerly, 0)
+        }
+    }
+
+    private fun fmConsecutiveBDepth(): Int =
+        (0 until fragmentManager.backStackEntryCount)
+            .map { fragmentManager.getBackStackEntryAt(it).name }
+            .takeLastWhile { it?.startsWith("screen_b_") == true }
+            .size - 1
 
     fun onResume() {
         val state = viewModel.stateOrNull(level) ?: return
