@@ -2,52 +2,61 @@ package com.github.navigationapp.navigation.navigationControllers
 
 import androidx.annotation.IdRes
 import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.commit
 import androidx.navigation.fragment.NavHostFragment
-import com.github.navigationapp.NavigationViewModel
+import com.github.navigationapp.NavigationState
+import com.github.navigationapp.R
 import com.github.navigationapp.navigation.NavigationMethod
-import com.zhuinden.simplestack.Backstack
 
 class RouterFactory(
     private val fragmentManager: FragmentManager,
     @IdRes private val containerId: Int,
-    private val viewModel: NavigationViewModel,
-    private val backstack: Backstack
+    private val level: Int,           // нужен для уникального тега NavHost
+    private val state: NavigationState,
 ) {
+    // Тег NavHostFragment уникален на каждый уровень
+    private val navHostTag = "nav_host_$level"
 
     fun create(method: NavigationMethod): NavigationRouter = when (method) {
         NavigationMethod.FRAGMENT_MANAGER -> FragmentManagerRouter(
             fragmentManager = fragmentManager,
-            containerId = containerId
+            containerId = containerId,
         )
-        NavigationMethod.JETPACK -> createJetpack(fragmentManager)
-        NavigationMethod.CICERONE -> CiceroneRouter(
-            router = viewModel.ciceroneRouter,
-            fragmentManager = fragmentManager
-        )
-        NavigationMethod.SIMPLE_STACK -> SimpleStackRouter(
-            backstack = backstack
-        )
-    }
 
-    fun createNested(method: NavigationMethod): NavigationRouter = when (method) {
-        NavigationMethod.FRAGMENT_MANAGER -> FragmentManagerRouter(
+        NavigationMethod.CICERONE -> CiceroneRouter(
+            router = state.ciceroneRouter,
             fragmentManager = fragmentManager,
-            containerId = containerId
         )
-        NavigationMethod.JETPACK -> createJetpack(fragmentManager)
-        NavigationMethod.CICERONE -> CiceroneRouter(
-            router = viewModel.nestedCiceroneRouter,
-            fragmentManager = fragmentManager
-        )
-        NavigationMethod.SIMPLE_STACK -> SimpleStackRouter(
-            backstack = backstack
-        )
+
+        NavigationMethod.JETPACK -> {
+            ensureNavHostFragment()
+            JetpackRouter(
+                navController = requireNavHostFragment().navController,
+            )
+        }
+
+        NavigationMethod.SIMPLE_STACK -> SimpleStackRouter(state.simpleBackstack, level = level)
     }
 
-    private fun createJetpack(fragmentManager: FragmentManager): JetpackRouter {
-        fragmentManager.executePendingTransactions()
-        val navHostFragment = fragmentManager
-            .findFragmentByTag("nav_host") as NavHostFragment
-        return JetpackRouter(navHostFragment.navController)
+    fun removeNavHostIfPresent() {
+        fragmentManager.findFragmentByTag(navHostTag)?.let { navHost ->
+            fragmentManager.commit {
+                remove(navHost)
+            }
+            fragmentManager.executePendingTransactions()
+        }
     }
+
+    private fun ensureNavHostFragment() {
+        if (fragmentManager.findFragmentByTag(navHostTag) != null) return
+        val navHostFragment = NavHostFragment.create(R.navigation.nav_graph)
+        fragmentManager.commit {
+            replace(containerId, navHostFragment, navHostTag)
+        }
+        fragmentManager.executePendingTransactions()
+    }
+
+    private fun requireNavHostFragment(): NavHostFragment =
+        fragmentManager.findFragmentByTag(navHostTag) as NavHostFragment
 }
+

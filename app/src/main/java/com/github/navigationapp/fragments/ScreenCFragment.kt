@@ -1,11 +1,8 @@
 package com.github.navigationapp.fragments
 
-import android.content.Context
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import androidx.activity.OnBackPressedCallback
+import androidx.activity.addCallback
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,6 +14,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.activityViewModels
@@ -29,6 +27,7 @@ import com.github.navigationapp.navigation.NavigationMethod
 import com.github.navigationapp.navigation.navigationControllers.NavigationRouter
 import com.github.navigationapp.navigation.navigationControllers.RouterFactory
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
+import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.Backstack
 import com.zhuinden.simplestack.BackstackDelegate
 import com.zhuinden.simplestack.History
@@ -38,50 +37,194 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
-/**
- * FragmentC - экран с вложенным контейнером для ScreenA
- *
- * Особенности:
- * - Содержит Box с отступами (через XML)
- * - Внутри Box размещен вложенный экземпляр FragmentA
- * - При закрытии вложенного A - закрывается сам FragmentC
- */
+
 @AndroidEntryPoint
 class ScreenCFragment : Fragment(R.layout.fragment_c) {
 
     private val viewModel: NavigationViewModel by activityViewModels()
-    private lateinit var nestedRouter: NavigationRouter
-    private lateinit var nestedBackstackDelegate: BackstackDelegate
+
+    private val hostingLevel: Int
+        get() = arguments?.getInt(ARG_HOSTING_LEVEL) ?: 1
+
+    private lateinit var router: NavigationRouter
+    private lateinit var routerFactory: RouterFactory
+
+    private val ciceroneNavigator by lazy {
+        object : AppNavigator(
+            requireActivity(),
+            R.id.nested_fragment_container,
+            childFragmentManager
+        ) {}
+    }
+
+    // StateChanger для SimpleStack — один объект, переподключается при resume
+    private val simpleStateChanger by lazy {
+        StateChanger { stateChange, callback ->
+            DefaultFragmentStateChanger(
+                childFragmentManager,
+                R.id.nested_fragment_container
+            ).handleStateChange(stateChange)
+            callback.stateChangeComplete()
+        }
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        nestedBackstackDelegate = BackstackDelegate()
-        nestedBackstackDelegate.onCreate(
-            savedInstanceState,
-            null,
-            History.single(ScreenKey.A)
+
+        routerFactory = RouterFactory(
+            fragmentManager = childFragmentManager,
+            containerId = R.id.nested_fragment_container,
+            level = hostingLevel,
+            state = viewModel.state(hostingLevel)
         )
 
-        val nestedStateChanger = DefaultFragmentStateChanger(
-            childFragmentManager,
-            R.id.nested_fragment_container
-        )
-        nestedBackstackDelegate.setStateChanger(StateChanger { stateChange, callback ->
-            nestedStateChanger.handleStateChange(stateChange)
-            callback.stateChangeComplete()
-        })
-        // Заголовок
+        setupHeader(view)
+
+        val currentMethod = viewModel.state(hostingLevel).method.value
+
+        when {
+            savedInstanceState == null -> {
+                // Первый запуск — создаём роутер и показываем A
+                router = routerFactory.create(currentMethod)
+                setupInitialScreen(currentMethod)
+            }
+            viewModel.needsReplay -> {
+                // Ротация + был сменён метод навигации — перестраиваем
+                router = routerFactory.create(currentMethod)
+                replayLevel()
+            }
+            else -> {
+                // Обычная ротация — Android восстановил фрагменты сам
+                router = routerFactory.create(currentMethod)
+                // Для SS — только переподключаем StateChanger (Backstack жив в ViewModel)
+                if (currentMethod == NavigationMethod.SIMPLE_STACK) {
+                    viewModel.state(hostingLevel).simpleBackstack
+                        .setStateChanger(simpleStateChanger)
+                }
+            }
+        }
+
+        subscribeToCommands()
+        subscribeToMethodChanges()
+        setupBackPress()
+        setupNestedAFinishedListener()
+    }
+
+    // Показываем начальный A — для SS он уже отображён через StateChanger
+    private fun setupInitialScreen(method: NavigationMethod) {
+        if (method == NavigationMethod.SIMPLE_STACK) {
+            viewModel.state(hostingLevel).simpleBackstack.setStateChanger(simpleStateChanger)
+        } else {
+            childFragmentManager.commit {
+                setReorderingAllowed(true)
+                replace(
+                    R.id.nested_fragment_container,
+                    ScreenAFragment.newInstance(nestingLevel = hostingLevel),
+                    ScreenKey.A(nestingLevel = hostingLevel).tag()
+                )
+            }
+        }
+    }
+
+    private fun replayLevel() {
+        val entries = viewModel.entriesForLevel(hostingLevel)
+        val currentMethod = viewModel.state(hostingLevel).method.value
+
+        // Очищаем всё что было
+        routerFactory.removeNavHostIfPresent()
+        if (currentMethod != NavigationMethod.SIMPLE_STACK) {
+            childFragmentManager.popBackStackImmediate(
+                null,
+                FragmentManager.POP_BACK_STACK_INCLUSIVE
+            )
+        }
+
+        // Устанавливаем начальный A
+        setupInitialScreen(currentMethod)
+        childFragmentManager.executePendingTransactions()
+
+        // Воспроизводим все переходы этого уровня
+        // Все entries одного уровня имеют одинаковый метод (метод меняется только на A)
+        entries.forEach { entry -> router.navigateTo(entry.key) }
+    }
+
+    private fun subscribeToCommands() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.state(hostingLevel).commands.collect { key ->
+                router.navigateTo(key)
+            }
+        }
+    }
+
+    private fun subscribeToMethodChanges() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            var previousMethod = viewModel.state(hostingLevel).method.value
+            viewModel.state(hostingLevel).method
+                .drop(1)
+                .collect { newMethod ->
+                    switchMethod(from = previousMethod, to = newMethod)
+                    previousMethod = newMethod
+                }
+        }
+    }
+
+    private fun switchMethod(from: NavigationMethod, to: NavigationMethod) {
+        // Отключаем старый метод
+        if (from == NavigationMethod.SIMPLE_STACK) {
+            viewModel.state(hostingLevel).simpleBackstack.detachStateChanger()
+        }
+        if (from == NavigationMethod.JETPACK) {
+            routerFactory.removeNavHostIfPresent()
+        } else {
+            router.clear()
+            childFragmentManager.executePendingTransactions()
+        }
+
+        // Создаём новый роутер
+        router = routerFactory.create(to)
+
+        // Устанавливаем начальный A для нового метода
+        setupInitialScreen(to)
+        childFragmentManager.executePendingTransactions()
+
+        // Воспроизводим текущий стек через новый метод
+        val entries = viewModel.entriesForLevel(hostingLevel)
+        entries.forEach { entry -> router.navigateTo(entry.key) }
+    }
+
+    private fun setupBackPress() {
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner) {
+            val handled = router.back()
+            if (handled) {
+                viewModel.pop(hostingLevel)
+            } else {
+                closeThisLevel()
+            }
+        }
+    }
+
+    private fun setupNestedAFinishedListener() {
+        childFragmentManager.setFragmentResultListener(
+            NESTED_A_FINISHED,
+            viewLifecycleOwner
+        ) { _, _ -> closeThisLevel() }
+    }
+
+    private fun closeThisLevel() {
+        viewModel.closeLevel(hostingLevel)
+        parentFragmentManager.popBackStack()
+    }
+
+    private fun setupHeader(view: View) {
         view.findViewById<ComposeView>(R.id.compose_header).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Screen C",
+                        text = "Screen C (Level $hostingLevel)",
                         fontSize = 28.sp,
                         color = Color.White
                     )
@@ -93,142 +236,48 @@ class ScreenCFragment : Fragment(R.layout.fragment_c) {
                 }
             }
         }
-
-        // Инициализируем вложенный роутер
-        nestedRouter = RouterFactory(
-            fragmentManager = childFragmentManager,
-            containerId = R.id.nested_fragment_container,
-            viewModel = viewModel,
-            backstack = createNestedBackstack(savedInstanceState)
-        ).createNested(viewModel.nestedMethod.value)
-
-        if (savedInstanceState == null) {
-            // Первый запуск — показываем вложенный Screen A
-            childFragmentManager.commit {
-                setReorderingAllowed(true)
-                replace(
-                    R.id.nested_fragment_container,
-                    ScreenAFragment.newInstance(isNested = true),
-                    ScreenKey.A.tag()
-                )
-            }
-        } else if (viewModel.nestedNeedsReplay) {
-            // Была смена метода — replay
-            childFragmentManager.popBackStackImmediate(
-                null,
-                FragmentManager.POP_BACK_STACK_INCLUSIVE
-            )
-            nestedRouter.replay(viewModel.nestedStack.value)
-            viewModel.onNestedReplayDone()
-        }
-        // else — нативный restore childFragmentManager справится сам
-
-        // Слушаем команды навигации для вложенного A
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.nestedNavigationCommands.collect { key ->
-                nestedRouter.navigateTo(key)
-            }
-        }
-
-        // Слушаем смену метода для вложенной навигации
-        viewLifecycleOwner.lifecycleScope.launch {
-            var previousNestedMethod = viewModel.nestedMethod.value
-            viewModel.nestedMethod
-                .drop(1)
-                .collect { newMethod ->
-                    switchNestedMethod(from = previousNestedMethod, to = newMethod)
-                    previousNestedMethod = newMethod
-                }
-        }
-
-        // Слушаем сигнал "вложенный A закрылся"
-        childFragmentManager.setFragmentResultListener(
-            NESTED_A_FINISHED,
-            viewLifecycleOwner
-        ) { _, _ ->
-            viewModel.resetNestedStack()
-            viewModel.pop() // закрываем сам Screen C
-            viewModel.navigationCommands.tryEmit(ScreenKey.A) // сигнал для MainActivity
-            parentFragmentManager.popBackStack()
-        }
     }
 
-    private fun switchNestedMethod(from: NavigationMethod, to: NavigationMethod) {
-        if (from == NavigationMethod.JETPACK) removeNestedNavHost()
-        if (to == NavigationMethod.JETPACK) addNestedNavHost()
-
-        nestedRouter = RouterFactory(
-            fragmentManager = childFragmentManager,
-            containerId = R.id.nested_fragment_container,
-            viewModel = viewModel,
-            backstack = nestedBackstackDelegate.backstack  // <-- теперь работает
-        ).createNested(to)
-
-        nestedRouter.replay(viewModel.nestedStack.value)
-    }
-
-    private fun addNestedNavHost() {
-        val navHostFragment = NavHostFragment.create(R.navigation.nav_graph)
-        childFragmentManager.commit {
-            setReorderingAllowed(true)
-            replace(R.id.nested_fragment_container, navHostFragment, "nested_nav_host")
-        }
-        childFragmentManager.executePendingTransactions()
-    }
-
-    private fun removeNestedNavHost() {
-        val navHostFragment = childFragmentManager.findFragmentByTag("nested_nav_host")
-        if (navHostFragment != null) {
-            childFragmentManager.commit {
-                setReorderingAllowed(true)
-                remove(navHostFragment)
-            }
-            childFragmentManager.executePendingTransactions()
-        }
-    }
-
-    private fun createNestedBackstack(savedInstanceState: Bundle?): Backstack {
-        val delegate = BackstackDelegate()
-        delegate.onCreate(
-            savedInstanceState,
-            null, // nested не использует NonConfigurationInstance
-            History.single(ScreenKey.A)
-        )
-        delegate.registerForLifecycleCallbacks(requireActivity())
-        delegate.backstack.setStateChanger(
-            StateChanger { stateChange, callback ->
-                DefaultFragmentStateChanger(
-                    childFragmentManager,
-                    R.id.nested_fragment_container
-                ).handleStateChange(stateChange)
-                callback.stateChangeComplete()
-            }
-        )
-        return delegate.backstack
-    }
     override fun onResume() {
         super.onResume()
-        nestedBackstackDelegate.onPostResume()
+        when (viewModel.state(hostingLevel).method.value) {
+            NavigationMethod.CICERONE ->
+                viewModel.state(hostingLevel).cicerone
+                    .getNavigatorHolder().setNavigator(ciceroneNavigator)
+            NavigationMethod.SIMPLE_STACK ->
+                viewModel.state(hostingLevel).simpleBackstack
+                    .reattachStateChanger()
+            else -> Unit
+        }
     }
 
     override fun onPause() {
-        nestedBackstackDelegate.onPause()
+        when (viewModel.state(hostingLevel).method.value) {
+            NavigationMethod.CICERONE ->
+                viewModel.state(hostingLevel).cicerone
+                    .getNavigatorHolder().removeNavigator()
+            NavigationMethod.SIMPLE_STACK ->
+                viewModel.state(hostingLevel).simpleBackstack
+                    .detachStateChanger()
+            else -> Unit
+        }
         super.onPause()
     }
 
     override fun onDestroyView() {
-        nestedBackstackDelegate.onDestroy()
+        // Отключаем StateChanger при уничтожении View (ротация или реальное закрытие)
+        if (viewModel.state(hostingLevel).method.value == NavigationMethod.SIMPLE_STACK) {
+            viewModel.state(hostingLevel).simpleBackstack.detachStateChanger()
+        }
         super.onDestroyView()
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        nestedBackstackDelegate.onSaveInstanceState(outState)
     }
 
     companion object {
         const val NESTED_A_FINISHED = "nested_a_finished"
+        private const val ARG_HOSTING_LEVEL = "hosting_level"
 
-        fun newInstance(): ScreenCFragment = ScreenCFragment()
+        fun newInstance(hostingLevel: Int = 1) = ScreenCFragment().apply {
+            arguments = bundleOf(ARG_HOSTING_LEVEL to hostingLevel)
+        }
     }
 }

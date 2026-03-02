@@ -25,7 +25,6 @@ import dagger.hilt.android.AndroidEntryPoint
  * - Считает только прямую рекурсию (B -> B -> B)
  */
 @AndroidEntryPoint
-// screens/ScreenBFragment.kt
 class ScreenBFragment : Fragment() {
 
     private val viewModel: NavigationViewModel by activityViewModels()
@@ -33,35 +32,48 @@ class ScreenBFragment : Fragment() {
     private val depthFromBundle: Int
         get() = arguments?.getInt(ARG_DEPTH) ?: 0
 
+    private val nestingLevel: Int
+        get() = arguments?.getInt(ARG_NESTING_LEVEL) ?: 0
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View {
-        return ComposeView(requireContext()).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            setContent {
-                val stack by viewModel.stack.collectAsState()
-                val backStackDepth = (stack.count { it is ScreenKey.B } - 1)
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        setContent {
+            val stack by viewModel.state(nestingLevel).stack.collectAsState()
 
-                ScreenBContent(
-                    recursionDepthFromBundle = depthFromBundle,
-                    backStackDepth = backStackDepth,
-                    onOpenAnotherB = {
-                        viewModel.navigateTo(ScreenKey.B(depth = depthFromBundle + 1))
-                    },
-                )
-            }
+            // Прямая рекурсия — только непрерывный хвост из B
+            val backStackDepth = stack
+                .takeLastWhile { it is ScreenKey.B }
+                .size - 1
+
+            ScreenBContent(
+                recursionDepthFromBundle = depthFromBundle,
+                backStackDepth = backStackDepth,
+                onOpenAnotherB = {
+                    viewModel.navigateTo(
+                        level = nestingLevel,
+                        key = ScreenKey.B(
+                            depth = depthFromBundle + 1,
+                            nestingLevel = nestingLevel
+                        )
+                    )
+                }
+            )
         }
     }
 
     companion object {
         private const val ARG_DEPTH = "depth"
+        private const val ARG_NESTING_LEVEL = "nesting_level"
 
-        fun newInstance(depth: Int): ScreenBFragment {
-            return ScreenBFragment().apply {
-                arguments = bundleOf(ARG_DEPTH to depth)
-            }
+        fun newInstance(depth: Int, nestingLevel: Int = 0) = ScreenBFragment().apply {
+            arguments = bundleOf(
+                ARG_DEPTH to depth,
+                ARG_NESTING_LEVEL to nestingLevel
+            )
         }
     }
 }

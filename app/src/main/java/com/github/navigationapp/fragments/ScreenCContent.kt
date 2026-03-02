@@ -11,29 +11,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * FragmentB - рекурсивный экран
- * 
- * Особенности:
- * - Получает recursionDepth из Bundle (передается в аргументах)
- * - Вычисляет глубину backstack через NavigationController
- * - Может открывать новый экземпляр FragmentB с depth + 1
- * - Считает только прямую рекурсию (B -> B -> B)
- */
-
-
-
-
-/**
- * FragmentC - экран с вложенным контейнером для ScreenA
- * 
- * Особенности:
- * - Содержит Box с отступами
- * - Внутри Box размещен вложенный экземпляр FragmentA
- * - При закрытии вложенного A - закрывается сам FragmentC
- */
-
-
 @Composable
 fun ScreenCContent() {
     Column(

@@ -1,103 +1,115 @@
 package com.github.navigationapp
 
 import androidx.lifecycle.ViewModel
+import com.github.navigationapp.navigation.NavEntry
 import com.github.navigationapp.navigation.NavigationMethod
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import com.github.terrakok.cicerone.Cicerone
 import com.github.terrakok.cicerone.Router
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 
 class NavigationViewModel : ViewModel() {
 
+    // --- Уровни навигации ---
 
-    private val _stack = MutableStateFlow<List<ScreenKey>>(listOf(ScreenKey.A))
-    val stack: StateFlow<List<ScreenKey>> = _stack.asStateFlow()
+    private val _states = mutableMapOf<Int, NavigationState>()
 
-    private val _method = MutableStateFlow(NavigationMethod.FRAGMENT_MANAGER)
-    val method: StateFlow<NavigationMethod> = _method.asStateFlow()
+    init {
+        _states[0] = NavigationState()
+    }
+
+    fun state(level: Int): NavigationState =
+        _states.getOrPut(level) { NavigationState(parentState = _states[level - 1]) }
+
+    // Вызывается из ScreenCFragment.onDestroyView
+    fun disposeLevel(level: Int) {
+        _states.remove(level)
+        updateNeedsReplay()
+    }
+
+    // --- Глобальный replay-стек ---
+
+    // Все экраны, открытые сверх начального A, в порядке навигации.
+    // A никогда не добавляется — он всегда подразумевается как начало каждого уровня.
+    // Уровень каждой записи вычисляется по количеству ScreenKey.C до неё.
+    private val _replayStack = mutableListOf<NavEntry>()
+    val replayStack: List<NavEntry> get() = _replayStack.toList()
 
     var needsReplay: Boolean = false
         private set
 
-    fun push(key: ScreenKey) {
-        _stack.update { it + key }
+    // Все записи, принадлежащие конкретному уровню:
+    // уровень записи = количество ScreenKey.C строго до неё
+    fun entriesForLevel(targetLevel: Int): List<NavEntry> {
+        var level = 0
+        val result = mutableListOf<NavEntry>()
+        for (entry in _replayStack) {
+            if (level == targetLevel) result.add(entry)
+            if (entry.key is ScreenKey.C) level++
+        }
+        return result
     }
 
-    fun pop(): Boolean {
-        if (_stack.value.size <= 1) return false
-        _stack.update { it.dropLast(1) }
-        return true
+    // --- Navigation API ---
+
+    fun navigateTo(level: Int, key: ScreenKey) {
+        val method = state(level).method.value
+        state(level).push(key)
+        state(level).commands.tryEmit(key)
+        _replayStack.add(NavEntry(key, method))
+        updateNeedsReplay()
     }
 
-    fun switchMethod(newMethod: NavigationMethod) {
-        if (newMethod == _method.value) return
-        if (_stack.value.size > 1) needsReplay = true
-        _method.value = newMethod
+    fun pop(level: Int): Boolean {
+        val result = state(level).pop()
+        if (result) {
+            _replayStack.removeLastOrNull()
+            updateNeedsReplay()
+        }
+        return result
     }
 
-    fun onReplayDone() {
-        needsReplay = false
+    fun switchMethod(level: Int, newMethod: NavigationMethod) {
+        if (newMethod == state(level).method.value) return
+        state(level).switchMethod(newMethod)
+        // Метод изменился — если в стеке уже есть записи с другим методом, нужен replay
+        updateNeedsReplay()
     }
 
-    // --- Nested navigation (вложенный A внутри Screen C) ---
-    val navigationCommands = MutableSharedFlow<ScreenKey>(extraBufferCapacity = 1)
-    val nestedNavigationCommands = MutableSharedFlow<ScreenKey>(extraBufferCapacity = 1)
-
-    fun navigateTo(key: ScreenKey) {
-        push(key)
-        navigationCommands.tryEmit(key)
+    // needsReplay = true если в replayStack есть хотя бы одна смена метода между соседними записями
+    private fun updateNeedsReplay() {
+        needsReplay = _replayStack
+            .zipWithNext()
+            .any { (a, b) -> a.method != b.method }
     }
 
-    fun navigateToNested(key: ScreenKey) {
-        pushNested(key)
-        nestedNavigationCommands.tryEmit(key)
+    // --- Cicerone (для MainActivity — level 0) ---
+    val cicerone: Cicerone<Router> get() = state(0).cicerone
+
+    fun closeLevel(level: Int) {
+        _states.remove(level)
+
+        val newStack = mutableListOf<NavEntry>()
+        var currentLevel = 0
+        for (entry in _replayStack) {
+            // C-запись, открывающая закрываемый уровень — не добавляем
+            if (entry.key is ScreenKey.C && currentLevel == level - 1) {
+                currentLevel++
+                continue
+            }
+            // Все записи глубже — не добавляем
+            if (currentLevel >= level) continue
+
+            newStack.add(entry)
+            if (entry.key is ScreenKey.C) currentLevel++
+        }
+
+        _replayStack.clear()
+        _replayStack.addAll(newStack)
+
+        // Убираем C из стека родительского уровня
+        state(level - 1).pop()
+
+        updateNeedsReplay()
     }
-
-    private val _nestedStack = MutableStateFlow<List<ScreenKey>>(listOf(ScreenKey.A))
-    val nestedStack: StateFlow<List<ScreenKey>> = _nestedStack.asStateFlow()
-
-    private val _nestedMethod = MutableStateFlow(NavigationMethod.FRAGMENT_MANAGER)
-    val nestedMethod: StateFlow<NavigationMethod> = _nestedMethod.asStateFlow()
-
-    var nestedNeedsReplay: Boolean = false
-        private set
-
-    fun pushNested(key: ScreenKey) {
-        _nestedStack.update { it + key }
-    }
-
-    fun popNested(): Boolean {
-        if (_nestedStack.value.size <= 1) return false
-        _nestedStack.update { it.dropLast(1) }
-        return true
-    }
-
-    fun switchNestedMethod(newMethod: NavigationMethod) {
-        if (newMethod == _nestedMethod.value) return
-        if (_nestedStack.value.size > 1) nestedNeedsReplay = true
-        _nestedMethod.value = newMethod
-    }
-
-    fun onNestedReplayDone() {
-        nestedNeedsReplay = false
-    }
-
-    fun resetNestedStack() {
-        _nestedStack.value = listOf(ScreenKey.A)
-        nestedNeedsReplay = false
-    }
-
-    // --- Cicerone (живёт здесь, переживает ротацию) ---
-
-    val cicerone: Cicerone<Router> = Cicerone.create()
-    val ciceroneRouter: Router get() = cicerone.router
-
-    // Отдельный Cicerone для вложенной навигации в Screen C
-    val nestedCicerone: Cicerone<Router> = Cicerone.create()
-    val nestedCiceroneRouter: Router get() = nestedCicerone.router
 }
+

@@ -15,74 +15,50 @@ import com.github.navigationapp.NavigationViewModel
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import dagger.hilt.android.AndroidEntryPoint
 
-/**
- * FragmentA - главный экран с селектором типа навигации
- *
- * Может быть:
- * 1. Корневым экраном (isNested = false)
- * 2. Вложенным внутри FragmentC (isNested = true)
- *
- * Каждый экземпляр имеет свой собственный NavigationHost
- */
 @AndroidEntryPoint
-// screens/ScreenAFragment.kt
 class ScreenAFragment : Fragment() {
 
     private val viewModel: NavigationViewModel by activityViewModels()
 
-    private val isNested: Boolean
-        get() = arguments?.getBoolean(ARG_IS_NESTED) ?: false
+    private val nestingLevel: Int
+        get() = arguments?.getInt(ARG_NESTING_LEVEL) ?: 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View {
-        return ComposeView(requireContext()).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            setContent {
-                val currentMethod by if (isNested) {
-                    viewModel.nestedMethod.collectAsState()
-                } else {
-                    viewModel.method.collectAsState()
-                }
+    ): View = ComposeView(requireContext()).apply {
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+        setContent {
+            val currentMethod by viewModel.state(nestingLevel).method.collectAsState()
 
-                ScreenAContent(
-                    isNested = isNested,
-                    currentNavigationType = currentMethod,
-                    onNavigationTypeSelected = { type ->
-                        if (isNested) {
-                            viewModel.switchNestedMethod(type)
-                        } else {
-                            viewModel.switchMethod(type)
-                        }
-                    },
-                    onNavigateToB = {
-                        if (isNested) {
-                            viewModel.navigateToNested(ScreenKey.B(depth = 0))
-                        } else {
-                            viewModel.navigateTo(ScreenKey.B(depth = 0))
-                        }
-                    },
-                    onNavigateToC = {
-                        if (isNested) {
-                            viewModel.navigateToNested(ScreenKey.C)
-                        } else {
-                            viewModel.navigateTo(ScreenKey.C)
-                        }
-                    }
-                )
-            }
+            ScreenAContent(
+                nestingLevel = nestingLevel,
+                currentNavigationType = currentMethod,
+                onNavigationTypeSelected = {
+                    viewModel.switchMethod(nestingLevel, it)
+                },
+                onNavigateToB = {
+                    viewModel.navigateTo(
+                        level = nestingLevel,
+                        key = ScreenKey.B(depth = 0, nestingLevel = nestingLevel)
+                    )
+                },
+                onNavigateToC = {
+                    viewModel.navigateTo(
+                        level = nestingLevel,
+                        key = ScreenKey.C(hostingLevel = nestingLevel + 1)
+                    )
+                }
+            )
         }
     }
 
     companion object {
-        private const val ARG_IS_NESTED = "is_nested"
+        private const val ARG_NESTING_LEVEL = "nesting_level"
 
-        fun newInstance(isNested: Boolean): ScreenAFragment {
-            return ScreenAFragment().apply {
-                arguments = bundleOf(ARG_IS_NESTED to isNested)
-            }
+        fun newInstance(nestingLevel: Int = 0) = ScreenAFragment().apply {
+            arguments = bundleOf(ARG_NESTING_LEVEL to nestingLevel)
         }
     }
 }
