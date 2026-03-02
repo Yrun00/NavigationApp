@@ -61,32 +61,29 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
 
     override fun navigateTo(key: ScreenKey) = delegate.navigateTo(key)
     override fun onResume() {
-        super.onResume(); delegate.onResume()
+        super.onResume()
+        delegate.onResume()
     }
 
     override fun onPause() {
-        delegate.onPause(); super.onPause()
+        delegate.onPause()
+        super.onPause()
     }
 
     override fun onDestroyView() {
-        delegate.onDestroyView(); super.onDestroyView()
+        delegate.onDestroyView()
+        super.onDestroyView()
     }
 
     private fun closeThisLevel() {
+        viewModel.closeLevel(hostingLevel)
         val parentLevel = hostingLevel - 1
-        viewModel.closeLevel(hostingLevel) // ViewModel: чистит уровень + делает pop у parentLevel
-
         when (viewModel.state(parentLevel).method.value) {
             NavigationMethod.SIMPLE_STACK ->
-                // FM back stack не используется — нужно идти через сам Backstack
                 viewModel.state(parentLevel).simpleBackstack.goBack()
-
             NavigationMethod.JETPACK ->
-                // ScreenCFragment живёт внутри NavHostFragment — findNavController()
-                // поднимается по view hierarchy и находит нужный NavController уровня parentLevel
                 findNavController().popBackStack()
-
-            else -> // FRAGMENT_MANAGER + CICERONE — оба добавляют в FM back stack
+            else ->
                 parentFragmentManager.popBackStack()
         }
     }

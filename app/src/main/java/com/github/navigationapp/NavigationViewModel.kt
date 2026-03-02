@@ -19,8 +19,9 @@ class NavigationViewModel : ViewModel() {
             NavigationState(level = level, parentState = parent)
         }
 
+    fun stateOrNull(level: Int): NavigationState? = _states[level]
+
     private val _replayStack = mutableListOf<NavEntry>()
-    val replayStack: List<NavEntry> get() = _replayStack.toList()
 
     var needsReplay: Boolean = false
         private set
@@ -57,35 +58,24 @@ class NavigationViewModel : ViewModel() {
     }
 
     fun closeLevel(level: Int) {
-        // Сначала закрываем все уровни выше
-        val maxLevel = _states.keys.maxOrNull() ?: 0
-        for (l in (maxLevel downTo level + 1)) {
-            _states[l]?.dispose()
-            _states.remove(l)
-        }
+        val parentState = _states[level - 1]
 
-        // Затем закрываем сам level
         _states[level]?.dispose()
         _states.remove(level)
 
-        // Пересобираем replayStack (как у тебя уже сделано)
-        val newStack = mutableListOf<NavEntry>()
-        var currentLevel = 0
-        for (entry in _replayStack) {
-            if (entry.key is ScreenKey.C && currentLevel == level - 1) {
-                currentLevel++
-                continue
-            }
-            if (currentLevel >= level) continue
-            newStack.add(entry)
-            if (entry.key is ScreenKey.C) currentLevel++
+        // Срезаем хвост начиная с ScreenKey.C, который открыл этот уровень.
+        // Это ровно последний C(hostingLevel = level) в стеке.
+        val cutIndex = _replayStack.indexOfLast {
+            it.key is ScreenKey.C && (it.key as ScreenKey.C).hostingLevel == level
         }
-        _replayStack.clear()
-        _replayStack.addAll(newStack)
+        if (cutIndex >= 0) {
+            _replayStack.subList(cutIndex, _replayStack.size).clear()
+        }
 
-        state(level - 1).pop()
+        parentState?.pop()
         updateNeedsReplay()
     }
+
 
     private fun updateNeedsReplay() {
         needsReplay = _replayStack

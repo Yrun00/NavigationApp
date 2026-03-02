@@ -32,7 +32,6 @@ class ScreenAFragment : Fragment() {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
             val nestingLevel = nestingLevel  // ← лог сюда!
-            Log.d("SCREEN_A", "nestingLevel=$nestingLevel, method=${viewModel.state(nestingLevel).method.value}")
 
             val currentMethod by viewModel.state(nestingLevel).method.collectAsState()
 

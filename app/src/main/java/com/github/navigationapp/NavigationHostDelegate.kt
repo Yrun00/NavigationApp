@@ -47,10 +47,12 @@ class NavigationHostDelegate(
             viewModel.needsReplay -> {
                 replayLevel()
             }
+
             savedInstanceState == null -> {
                 activateRouter(currentMethod)
                 setupInitialScreen(currentMethod)
             }
+
             else -> {
                 // Обычная ротация без смены метода — FM сам восстановил фрагменты
                 activateRouter(currentMethod)
@@ -65,35 +67,35 @@ class NavigationHostDelegate(
     }
 
     fun onResume() {
-        when (viewModel.state(level).method.value) {
+        val state = viewModel.stateOrNull(level) ?: return
+        when (state.method.value) {
             NavigationMethod.CICERONE ->
-                viewModel.state(level).cicerone
-                    .getNavigatorHolder().setNavigator(getCiceroneNavigator())
+                state.cicerone.getNavigatorHolder().setNavigator(getCiceroneNavigator())
 
-            NavigationMethod.SIMPLE_STACK ->  // ← раньше было Unit
-                viewModel.state(level).simpleBackstack
-                    .setStateChanger(getSimpleStateChanger())
+            NavigationMethod.SIMPLE_STACK ->
+                state.simpleBackstack.setStateChanger(getSimpleStateChanger())
 
             else -> Unit
         }
     }
 
     fun onPause() {
-        when (viewModel.state(level).method.value) {
+        val state = viewModel.stateOrNull(level) ?: return
+        when (state.method.value) {
             NavigationMethod.CICERONE ->
-                viewModel.state(level).cicerone
-                    .getNavigatorHolder().removeNavigator()
+                state.cicerone.getNavigatorHolder().removeNavigator()
 
             NavigationMethod.SIMPLE_STACK ->
-                viewModel.state(level).simpleBackstack.detachStateChanger()  // ← только пауза
+                state.simpleBackstack.detachStateChanger()
 
             else -> Unit
         }
     }
 
     fun onDestroyView() {
-        if (viewModel.state(level).method.value == NavigationMethod.SIMPLE_STACK) {
-            viewModel.state(level).simpleBackstack.detachStateChanger()
+        val state = viewModel.stateOrNull(level) ?: return
+        if (state.method.value == NavigationMethod.SIMPLE_STACK) {
+            state.simpleBackstack.detachStateChanger()
         }
     }
 
@@ -115,12 +117,14 @@ class NavigationHostDelegate(
     private fun setupInitialScreen(method: NavigationMethod) {
         when (method) {
             NavigationMethod.SIMPLE_STACK,
-            NavigationMethod.JETPACK -> Unit
+            NavigationMethod.JETPACK,
+                -> Unit
+
             else -> fragmentManager.commitNow {  // ← commitNow
                 replace(
                     containerId,
                     ScreenAFragment.newInstance(nestingLevel = level),
-                    ScreenKey.A(nestingLevel = level).tag()
+                    ScreenKey.A(nestingLevel = level).tag(),
                 )
             }
         }
@@ -138,7 +142,7 @@ class NavigationHostDelegate(
         if (currentMethod == NavigationMethod.SIMPLE_STACK) {
             viewModel.state(level).simpleBackstack.setHistory(
                 History.single(ScreenKey.A(nestingLevel = level)),
-                StateChange.REPLACE
+                StateChange.REPLACE,
             )
         }
 
@@ -193,38 +197,42 @@ class NavigationHostDelegate(
 
     }
 
+
     private fun switchMethod(from: NavigationMethod, to: NavigationMethod) {
         when (from) {
-            NavigationMethod.CICERONE ->
-                viewModel.state(level).cicerone
-                    .getNavigatorHolder().removeNavigator()
-
-            NavigationMethod.SIMPLE_STACK ->
+            NavigationMethod.CICERONE -> {
+                viewModel.state(level).cicerone.getNavigatorHolder().removeNavigator()
+                router.clear()
+            }
+            NavigationMethod.SIMPLE_STACK -> {
                 viewModel.state(level).simpleBackstack.detachStateChanger()
-
-            else -> Unit
+                router.clear()
+                val stranded = fragmentManager.fragments
+                    .filter { it.id == containerId && !it.isRemoving }
+                if (stranded.isNotEmpty()) {
+                    fragmentManager.commitNow { stranded.forEach { remove(it) } }
+                }
+            }
+            NavigationMethod.JETPACK -> {
+                routerFactory.removeNavHostIfPresent()
+            }
+            NavigationMethod.FRAGMENT_MANAGER -> {
+                router.clear()
+            }
         }
-        if (from == NavigationMethod.JETPACK) {
-            routerFactory.removeNavHostIfPresent()
-        } else {
-            router.clear()
-            fragmentManager.executePendingTransactions()
+
+        if (to == NavigationMethod.SIMPLE_STACK) {
+            viewModel.state(level).simpleBackstack.setHistory(
+                History.single(ScreenKey.A(nestingLevel = level)),
+                StateChange.REPLACE
+            )
         }
 
         activateRouter(to)
         setupInitialScreen(to)
         fragmentManager.executePendingTransactions()
-
-        val entries = viewModel.entriesForLevel(level)
-        for (entry in entries) {
-            router.navigateTo(entry.key)
-            if (entry.key is ScreenKey.C) break
-        }
     }
 
-    private fun setupBackPress() {
-        // Передаётся через хост — Activity и Fragment по-разному регистрируют back
-    }
 
     fun handleBack(): Boolean {
         val handled = router.back()
@@ -232,7 +240,9 @@ class NavigationHostDelegate(
             viewModel.pop(level)
             return true
         }
+
         onEmptyStack()
         return false
     }
+
 }

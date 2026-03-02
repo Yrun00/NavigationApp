@@ -36,7 +36,10 @@ class MainActivity : AppCompatActivity(), NavigationHost {
 
     private val simpleStateChanger by lazy {
         StateChanger { stateChange, callback ->
-            NoAnimFragmentStateChanger(supportFragmentManager, R.id.root_fragment_container) // ← правильный контейнер
+            NoAnimFragmentStateChanger(
+                supportFragmentManager,
+                R.id.root_fragment_container,
+            )
                 .handleStateChange(stateChange)
             callback.stateChangeComplete()
         }
@@ -52,15 +55,19 @@ class MainActivity : AppCompatActivity(), NavigationHost {
     }
 
     override fun navigateTo(key: ScreenKey) = delegate.navigateTo(key)
+
     override fun onResume() {
-        super.onResume(); delegate.onResume()
+        super.onResume()
+        delegate.onResume()
     }
 
     override fun onPause() {
-        delegate.onPause(); super.onPause()
+        delegate.onPause()
+        super.onPause()
     }
 
     override fun onDestroy() {
-        delegate.onDestroyView(); super.onDestroy()
+        delegate.onDestroyView()
+        super.onDestroy()
     }
 }
