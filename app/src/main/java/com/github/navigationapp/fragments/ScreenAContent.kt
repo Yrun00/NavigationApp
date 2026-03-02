@@ -94,14 +94,5 @@ fun ScreenAContent(
                 )
             }
         }
-
-        if (nestingLevel != 0) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "This is a nested instance with independent navigation",
-                fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.7f),
-            )
-        }
     }
 }
