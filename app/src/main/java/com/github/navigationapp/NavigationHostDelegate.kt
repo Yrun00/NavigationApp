@@ -13,6 +13,8 @@ import com.github.navigationapp.navigation.navigationControllers.NavigationRoute
 import com.github.navigationapp.navigation.navigationControllers.RouterFactory
 import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
+import com.zhuinden.simplestack.History
+import com.zhuinden.simplestack.StateChange
 import com.zhuinden.simplestack.StateChanger
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
@@ -37,27 +39,25 @@ class NavigationHostDelegate(
             level = level,
             state = viewModel.state(level),
         )
-
         val currentMethod = viewModel.state(level).method.value
 
         when {
+            // needsReplay ПЕРВЫМ: покрывает и ротацию (savedState != null),
+            // и новый C созданный в цепочке replay (savedState = null)
+            viewModel.needsReplay -> {
+                replayLevel()
+            }
             savedInstanceState == null -> {
                 activateRouter(currentMethod)
                 setupInitialScreen(currentMethod)
             }
-
-            viewModel.needsReplay -> {
-                activateRouter(currentMethod)
-                replayLevel()
-            }
-
             else -> {
+                // Обычная ротация без смены метода — FM сам восстановил фрагменты
                 activateRouter(currentMethod)
             }
         }
 
         subscribeToMethodChanges(lifecycleOwner)
-        // back press регистрирует сам хост — не делегат
     }
 
     override fun navigateTo(key: ScreenKey) {
@@ -127,22 +127,56 @@ class NavigationHostDelegate(
     }
 
     private fun replayLevel() {
-        val entries = viewModel.entriesForLevel(level)
         val currentMethod = viewModel.state(level).method.value
+        val entries = viewModel.entriesForLevel(level)
 
-        routerFactory.removeNavHostIfPresent()
-        if (currentMethod != NavigationMethod.SIMPLE_STACK) {
-            fragmentManager.popBackStackImmediate(
-                null, FragmentManager.POP_BACK_STACK_INCLUSIVE,
+        // Шаг 1: Полностью чистим контейнер
+        clearContainerForReplay()
+
+        // Шаг 2: SimpleStack — сбросить историю ДО attach state changer,
+        // иначе setStateChanger() сразу выстрелит со старой историей
+        if (currentMethod == NavigationMethod.SIMPLE_STACK) {
+            viewModel.state(level).simpleBackstack.setHistory(
+                History.single(ScreenKey.A(nestingLevel = level)),
+                StateChange.REPLACE
             )
         }
 
+        // Шаг 3: Активируем роутер
+        // Для SS: setStateChanger() → начальный state change [A] → показывает ScreenAFragment
+        // Для Cicerone: setNavigator()
+        activateRouter(currentMethod)
+
+        // Шаг 4: Для FM/Cicerone/Jetpack: вручную размещаем начальный A
+        // (SS уже показал A через state changer в шаге 3)
         setupInitialScreen(currentMethod)
         fragmentManager.executePendingTransactions()
 
+        // Шаг 5: Воспроизводим записанный путь
+        // executePendingTransactions() после каждого шага — гарантирует, что
+        // ScreenCFragment.onViewCreated → initialize(needsReplay=true) → replayLevel(level+1)
+        // отработает синхронно до того, как мы вернёмся наверх
         for (entry in entries) {
             router.navigateTo(entry.key)
-            if (entry.key is ScreenKey.C) break
+            fragmentManager.executePendingTransactions()
+            if (entry.key is ScreenKey.C) break  // вложенный C сам завершит свой уровень
+        }
+    }
+
+    private fun clearContainerForReplay() {
+        // Удаляем NavHostFragment (Jetpack)
+        routerFactory.removeNavHostIfPresent()
+
+        // Удаляем фрагменты из FM back stack (FM + Cicerone)
+        fragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
+
+        // Удаляем фрагменты SimpleStack — они не в back stack, но всё ещё в контейнере
+        val stranded = fragmentManager.fragments
+            .filter { it.id == containerId && !it.isRemoving }
+        if (stranded.isNotEmpty()) {
+            fragmentManager.commitNow {
+                stranded.forEach { remove(it) }
+            }
         }
     }
 

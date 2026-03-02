@@ -57,9 +57,18 @@ class NavigationViewModel : ViewModel() {
     }
 
     fun closeLevel(level: Int) {
+        // Сначала закрываем все уровни выше
+        val maxLevel = _states.keys.maxOrNull() ?: 0
+        for (l in (maxLevel downTo level + 1)) {
+            _states[l]?.dispose()
+            _states.remove(l)
+        }
+
+        // Затем закрываем сам level
         _states[level]?.dispose()
         _states.remove(level)
 
+        // Пересобираем replayStack (как у тебя уже сделано)
         val newStack = mutableListOf<NavEntry>()
         var currentLevel = 0
         for (entry in _replayStack) {
