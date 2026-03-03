@@ -128,7 +128,7 @@ class NavigationHostDelegate(
 
         if (router != null && activeMethod == desiredMethod) return
 
-        router!!.let { old ->
+        router?.let { old ->
             old.detach()
             old.clearContainer()
         }
