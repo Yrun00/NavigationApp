@@ -125,13 +125,10 @@ class NavigationHostDelegate(
 
     private fun ensureRouter() {
         val desiredMethod = viewModel.state(level).method.value
-
         if (router != null && activeMethod == desiredMethod) return
 
-        router?.let { old ->
-            old.detach()
-            old.clearContainer()
-        }
+        router?.detach()
+        router?.clearContainer()
 
         if (desiredMethod == NavigationMethod.SIMPLE_STACK) {
             viewModel.state(level).simpleBackstack.setHistory(
@@ -141,7 +138,7 @@ class NavigationHostDelegate(
         }
 
         activateRouter(desiredMethod)
-        setupInitialScreen(desiredMethod)
+        if (desiredMethod.needToPlaceInitialScreen) placeScreenA()
         fragmentManager.executePendingTransactions()
     }
 
@@ -150,22 +147,6 @@ class NavigationHostDelegate(
         router.attach()
         this.router = router
         activeMethod = method
-    }
-
-    private fun setupInitialScreen(method: NavigationMethod) {
-        when (method) {
-            NavigationMethod.SIMPLE_STACK,
-            NavigationMethod.JETPACK,
-                -> Unit
-
-            else -> fragmentManager.commitNow {
-                replace(
-                    containerId,
-                    ScreenAFragment.newInstance(level = level),
-                    ScreenKey.A(level = level).getFragmentTag(),
-                )
-            }
-        }
     }
 
     private fun restoreRouter() {
@@ -186,7 +167,7 @@ class NavigationHostDelegate(
             )
         }
         activateRouter(method)
-        setupInitialScreen(method)
+        if (method.needToPlaceInitialScreen) placeScreenA()
         fragmentManager.executePendingTransactions()
         for (entry in entries) {
             router!!.navigateTo(entry.key)

@@ -12,7 +12,6 @@ class FragmentManagerRouter(
 
     override fun navigateTo(key: ScreenKey) {
         fragmentManager.commit {
-            setReorderingAllowed(true)
             replace(containerId, key.instantiateFragment(), key.getFragmentTag())
             addToBackStack(key.getFragmentTag())
         }
