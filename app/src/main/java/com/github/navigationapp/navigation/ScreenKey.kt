@@ -14,11 +14,9 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 sealed class ScreenKey : DefaultFragmentKey() {
 
-    abstract val level: Int
-
-    data class A(override val level: Int) : ScreenKey()
-    data class B(val depth: Int, override val level: Int) : ScreenKey()
-    data class C(override val level: Int) : ScreenKey()
+    data class A(val level: Int) : ScreenKey()
+    data class B(val depth: Int) : ScreenKey()
+    data class C(val level: Int) : ScreenKey()
 
     override fun getFragmentTag(): String = when (this) {
         is A -> "screen_a"
@@ -27,9 +25,9 @@ sealed class ScreenKey : DefaultFragmentKey() {
     }
 
     public override fun instantiateFragment(): Fragment = when (this) {
-        is A -> ScreenAFragment.newInstance(nestingLevel = level)
-        is B -> ScreenBFragment.newInstance(depth = depth, nestingLevel = level)
-        is C -> ScreenCFragment.newInstance(hostingLevel = level)
+        is A -> ScreenAFragment.newInstance(level = level)
+        is B -> ScreenBFragment.newInstance(depth = depth)
+        is C -> ScreenCFragment.newInstance(level = level)
     }
 
     fun toDestinationId(): Int = when (this) {
@@ -39,19 +37,12 @@ sealed class ScreenKey : DefaultFragmentKey() {
     }
 
     fun toBundle(): Bundle = when (this) {
-        is A -> bundleOf(
-            ScreenAFragment.ARG_NESTING_LEVEL to level,
-        )
-        is B -> bundleOf(
-            ScreenBFragment.ARG_DEPTH to depth,
-            ScreenBFragment.ARG_NESTING_LEVEL to level,
-        )
-        is C -> bundleOf(
-            ScreenCFragment.ARG_HOSTING_LEVEL to level,
-        )
+        is A -> bundleOf(ScreenAFragment.ARG_LEVEL to level)
+        is B -> bundleOf(ScreenBFragment.ARG_DEPTH to depth)
+        is C -> bundleOf(ScreenCFragment.ARG_LEVEL to level)
     }
 
-    fun toCiceroneScreen(): FragmentScreen = FragmentScreen(key = getFragmentTag()) {
+    fun toCiceroneScreen(): FragmentScreen = FragmentScreen.Companion(key = getFragmentTag()) {
         instantiateFragment().also { fragment ->
             fragment.arguments = (fragment.arguments ?: Bundle()).apply {
                 putParcelable(ARG_SCREEN_KEY, this@ScreenKey)

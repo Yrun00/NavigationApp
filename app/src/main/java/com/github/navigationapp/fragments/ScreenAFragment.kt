@@ -18,8 +18,8 @@ class ScreenAFragment : Fragment() {
 
     private val viewModel: NavigationViewModel by activityViewModels()
 
-    private val nestingLevel: Int
-        get() = arguments?.getInt(ARG_NESTING_LEVEL) ?: 0
+    private val level: Int
+        get() = arguments?.getInt(ARG_LEVEL) ?: 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -28,24 +28,24 @@ class ScreenAFragment : Fragment() {
     ): View = ComposeView(requireContext()).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
-            val nestingLevel = nestingLevel
+            val level = level
 
-            val currentMethod by viewModel.state(nestingLevel).method.collectAsState()
+            val currentMethod by viewModel.state(level).method.collectAsState()
 
             ScreenAContent(
-                nestingLevel = nestingLevel,
+                nestingLevel = level,
                 currentNavigationType = currentMethod,
                 onNavigationTypeSelected = {
-                    viewModel.switchMethod(nestingLevel, it)
+                    viewModel.switchMethod(level, it)
                 },
                 onNavigateToB = {
-                    val key = ScreenKey.B(depth = 0, level = nestingLevel)
-                    viewModel.push(nestingLevel, key)
+                    val key = ScreenKey.B(depth = 0)
+                    viewModel.push(level, key)
                     findNavigationHost().navigateTo(key)
                 },
                 onNavigateToC = {
-                    val key = ScreenKey.C(level = nestingLevel + 1)
-                    viewModel.push(nestingLevel, key)
+                    val key = ScreenKey.C(level = level + 1)
+                    viewModel.push(level, key)
                     findNavigationHost().navigateTo(key)
                 },
             )
@@ -53,10 +53,10 @@ class ScreenAFragment : Fragment() {
     }
 
     companion object {
-        const val ARG_NESTING_LEVEL = "nesting_level"
+        const val ARG_LEVEL = "level"
 
-        fun newInstance(nestingLevel: Int = 0) = ScreenAFragment().apply {
-            arguments = bundleOf(ARG_NESTING_LEVEL to nestingLevel)
+        fun newInstance(level: Int = 0) = ScreenAFragment().apply {
+            arguments = bundleOf(ARG_LEVEL to level)
         }
     }
 }

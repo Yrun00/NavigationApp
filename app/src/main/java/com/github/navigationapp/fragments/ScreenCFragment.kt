@@ -18,18 +18,18 @@ import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
 import kotlinx.coroutines.flow.StateFlow
 
-
 class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
 
     private val viewModel: NavigationViewModel by activityViewModels()
-    private val hostingLevel: Int get() = arguments?.getInt(ARG_HOSTING_LEVEL) ?: 1
+
+    override val level: Int get() = arguments?.getInt(ARG_LEVEL) ?: 1
 
     private lateinit var delegate: NavigationHostDelegate
 
     private val ciceroneNavigator by lazy {
-        object :
-            AppNavigator(requireActivity(), R.id.nested_fragment_container, childFragmentManager) {}
+        object : AppNavigator(requireActivity(), R.id.nested_fragment_container, childFragmentManager) {}
     }
+
     private val simpleStateChanger by lazy {
         StateChanger { stateChange, callback ->
             NoAnimFragmentStateChanger(childFragmentManager, R.id.nested_fragment_container)
@@ -44,24 +44,22 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
         delegate = NavigationHostDelegate(
             fragmentManager = childFragmentManager,
             containerId = R.id.nested_fragment_container,
-            level = hostingLevel,
+            level = level,
             viewModel = viewModel,
             getCiceroneNavigator = { ciceroneNavigator },
             getSimpleStateChanger = { simpleStateChanger },
             onEmptyStack = { closeThisLevel() },
         )
 
-        delegate.initialize(savedInstanceState, viewLifecycleOwner)  // ← свежий lifecycleOwner
+        delegate.initialize(savedInstanceState, viewLifecycleOwner)
 
         requireActivity().onBackPressedDispatcher
             .addCallback(viewLifecycleOwner) { delegate.handleBack() }
     }
 
     override fun navigateTo(key: ScreenKey) = delegate.navigateTo(key)
-    override fun observeBackStackDepth(): StateFlow<Int> {
 
-        return delegate.observeBackStackDepth()
-    }
+    override fun observeBackStackDepth(): StateFlow<Int> = delegate.observeBackStackDepth()
 
     override fun onResume() {
         super.onResume()
@@ -79,25 +77,23 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
     }
 
     private fun closeThisLevel() {
-        viewModel.closeLevel(hostingLevel)
-        val parentLevel = hostingLevel - 1
+        viewModel.closeLevel(level)
+        val parentLevel = level - 1
         when (viewModel.state(parentLevel).method.value) {
             NavigationMethod.SIMPLE_STACK ->
                 viewModel.state(parentLevel).simpleBackstack.goBack()
-
             NavigationMethod.JETPACK ->
                 findNavController().popBackStack()
-
             else ->
                 parentFragmentManager.popBackStack()
         }
     }
 
     companion object {
-        const val ARG_HOSTING_LEVEL = "hosting_level"
-        fun newInstance(hostingLevel: Int = 1) = ScreenCFragment().apply {
-            arguments = bundleOf(ARG_HOSTING_LEVEL to hostingLevel)
+        const val ARG_LEVEL = "level"
+
+        fun newInstance(level: Int = 1) = ScreenCFragment().apply {
+            arguments = bundleOf(ARG_LEVEL to level)
         }
     }
 }
-

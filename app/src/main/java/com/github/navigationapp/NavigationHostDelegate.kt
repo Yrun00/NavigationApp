@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
 class NavigationHostDelegate(
     private val fragmentManager: FragmentManager,
     @IdRes private val containerId: Int,
-    private val level: Int,
+    override val level: Int,
     private val viewModel: NavigationViewModel,
     private val getCiceroneNavigator: () -> AppNavigator,
     private val getSimpleStateChanger: () -> StateChanger,
@@ -124,7 +124,7 @@ class NavigationHostDelegate(
             else -> fragmentManager.commitNow {
                 replace(
                     containerId,
-                    ScreenAFragment.newInstance(nestingLevel = level),
+                    ScreenAFragment.newInstance(level = level),
                     ScreenKey.A(level = level).getFragmentTag(),
                 )
             }

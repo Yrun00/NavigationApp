@@ -11,16 +11,17 @@ import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
 import kotlinx.coroutines.flow.StateFlow
 
-
 class MainActivity : AppCompatActivity(), NavigationHost {
 
     private val viewModel: NavigationViewModel by viewModels()
+
+    override val level: Int = 0
 
     private val delegate by lazy {
         NavigationHostDelegate(
             fragmentManager = supportFragmentManager,
             containerId = R.id.root_fragment_container,
-            level = 0,
+            level = level,
             viewModel = viewModel,
             getCiceroneNavigator = { ciceroneNavigator },
             getSimpleStateChanger = { simpleStateChanger },
@@ -47,15 +48,12 @@ class MainActivity : AppCompatActivity(), NavigationHost {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         delegate.initialize(savedInstanceState, this)
-
         onBackPressedDispatcher.addCallback(this) { delegate.handleBack() }
     }
 
     override fun navigateTo(key: ScreenKey) = delegate.navigateTo(key)
 
-    override fun observeBackStackDepth(): StateFlow<Int> {
-        return delegate.observeBackStackDepth()
-    }
+    override fun observeBackStackDepth(): StateFlow<Int> = delegate.observeBackStackDepth()
 
     override fun onResume() {
         super.onResume()

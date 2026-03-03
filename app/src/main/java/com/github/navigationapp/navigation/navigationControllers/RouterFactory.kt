@@ -2,6 +2,7 @@ package com.github.navigationapp.navigation.navigationControllers
 
 import androidx.annotation.IdRes
 import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.commit
 import androidx.fragment.app.commitNow
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
@@ -56,7 +57,7 @@ class RouterFactory(
 
     fun removeNavHostIfPresent() {
         fragmentManager.findFragmentByTag(navHostTag)?.let { navHost ->
-            fragmentManager.commitNow { remove(navHost) }
+            fragmentManager.commit { remove(navHost) }
             fragmentManager.executePendingTransactions()
         }
     }
