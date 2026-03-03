@@ -24,7 +24,7 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
 
     override val level: Int get() = arguments?.getInt(ARG_LEVEL) ?: 1
 
-    private lateinit var delegate: NavigationHostDelegate
+    private var delegate: NavigationHostDelegate? = null
 
     private val ciceroneNavigator by lazy {
         object : AppNavigator(requireActivity(), R.id.nested_fragment_container, childFragmentManager) {}
@@ -49,30 +49,29 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
             getCiceroneNavigator = { ciceroneNavigator },
             getSimpleStateChanger = { simpleStateChanger },
             onEmptyStack = { closeThisLevel() },
-        )
-
-        delegate.initialize(savedInstanceState, viewLifecycleOwner)
+        ).also { it.initialize(savedInstanceState, viewLifecycleOwner) }
 
         requireActivity().onBackPressedDispatcher
-            .addCallback(viewLifecycleOwner) { delegate.handleBack() }
+            .addCallback(viewLifecycleOwner) { checkNotNull(delegate).handleBack() }
     }
 
-    override fun navigateTo(key: ScreenKey) = delegate.navigateTo(key)
+    override fun navigateTo(key: ScreenKey) = checkNotNull(delegate).navigateTo(key)
 
-    override fun observeBackStackDepth(): StateFlow<Int> = delegate.observeBackStackDepth()
+    override fun observeBackStackDepth(): StateFlow<Int> = checkNotNull(delegate).observeBackStackDepth()
 
     override fun onResume() {
         super.onResume()
-        delegate.onResume()
+        delegate?.onResume()
     }
 
     override fun onPause() {
-        delegate.onPause()
+        delegate?.onPause()
         super.onPause()
     }
 
     override fun onDestroyView() {
-        delegate.onDestroyView()
+        delegate?.onDestroyView()
+        delegate = null
         super.onDestroyView()
     }
 
