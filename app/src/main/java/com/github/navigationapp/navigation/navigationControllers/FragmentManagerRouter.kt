@@ -4,7 +4,6 @@ import androidx.annotation.IdRes
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 
-
 class FragmentManagerRouter(
     private val fragmentManager: FragmentManager,
     @IdRes private val containerId: Int,
@@ -24,7 +23,7 @@ class FragmentManagerRouter(
         return true
     }
 
-    override fun clear() {
+    override fun clearContainer() {
         fragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
     }
 }

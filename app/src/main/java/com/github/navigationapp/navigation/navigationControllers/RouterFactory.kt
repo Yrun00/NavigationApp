@@ -9,12 +9,16 @@ import androidx.navigation.fragment.NavHostFragment
 import com.github.navigationapp.NavigationState
 import com.github.navigationapp.R
 import com.github.navigationapp.navigation.NavigationMethod
+import com.github.terrakok.cicerone.androidx.AppNavigator
+import com.zhuinden.simplestack.StateChanger
 
 class RouterFactory(
     private val fragmentManager: FragmentManager,
     @IdRes private val containerId: Int,
     private val level: Int,
     private val state: NavigationState,
+    private val getCiceroneNavigator: () -> AppNavigator,
+    private val getSimpleStateChanger: () -> StateChanger,
 ) {
     private val navHostTag = "nav_host_$level"
 
@@ -27,25 +31,32 @@ class RouterFactory(
         NavigationMethod.CICERONE -> CiceroneRouter(
             router = state.ciceroneRouter.router,
             fragmentManager = fragmentManager,
+            navigatorHolder = state.ciceroneRouter.getNavigatorHolder(),
+            getNavigator = getCiceroneNavigator,
         )
 
         NavigationMethod.JETPACK -> {
             ensureNavHostFragment()
             JetpackRouter(
                 navController = requireNavHostFragment().navController,
+                removeNavHost = ::removeNavHostIfPresent,
             )
         }
 
-        NavigationMethod.SIMPLE_STACK -> SimpleStackRouter(state.simpleBackstack, level = level)
+        NavigationMethod.SIMPLE_STACK -> SimpleStackRouter(
+            backstack = state.simpleBackstack,
+            fragmentManager = fragmentManager,
+            containerId = containerId,
+            getStateChanger = getSimpleStateChanger,
+        )
     }
 
     fun getNavController(): NavController? =
         (fragmentManager.findFragmentByTag(navHostTag) as? NavHostFragment)?.navController
+
     fun removeNavHostIfPresent() {
         fragmentManager.findFragmentByTag(navHostTag)?.let { navHost ->
-            fragmentManager.commit {
-                remove(navHost)
-            }
+            fragmentManager.commit { remove(navHost) }
             fragmentManager.executePendingTransactions()
         }
     }
@@ -63,4 +74,3 @@ class RouterFactory(
     private fun requireNavHostFragment(): NavHostFragment =
         fragmentManager.findFragmentByTag(navHostTag) as NavHostFragment
 }
-

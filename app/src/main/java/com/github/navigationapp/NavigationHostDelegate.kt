@@ -33,12 +33,11 @@ class NavigationHostDelegate(
     private val viewModel: NavigationViewModel,
     private val getCiceroneNavigator: () -> AppNavigator,
     private val getSimpleStateChanger: () -> StateChanger,
-    private val onEmptyStack: () -> Unit,  // finish() или closeThisLevel()
+    private val onEmptyStack: () -> Unit,
 ) : NavigationHost {
 
     private lateinit var router: NavigationRouter
     private lateinit var routerFactory: RouterFactory
-
     private lateinit var scope: CoroutineScope
 
     fun initialize(savedInstanceState: Bundle?, lifecycleOwner: LifecycleOwner) {
@@ -48,124 +47,81 @@ class NavigationHostDelegate(
             containerId = containerId,
             level = level,
             state = viewModel.state(level),
+            getCiceroneNavigator = getCiceroneNavigator,
+            getSimpleStateChanger = getSimpleStateChanger,
         )
-        val currentMethod = viewModel.state(level).method.value
-
         when {
-            viewModel.needsReplay -> {
-                replayLevel()
-            }
-
+            viewModel.needsReplay -> replayLevel()
             savedInstanceState == null -> {
-                activateRouter(currentMethod)
-                setupInitialScreen(currentMethod)
+                val method = viewModel.state(level).method.value
+                activateRouter(method)
+                setupInitialScreen(method)
             }
-
-            else -> {
-                activateRouter(currentMethod)
-            }
+            else -> activateRouter(viewModel.state(level).method.value)
         }
-
-        subscribeToMethodChanges(lifecycleOwner)
+        observeMethodChanges(lifecycleOwner)
     }
 
-    override fun navigateTo(key: ScreenKey) {
-        router.navigateTo(key)
-    }
-
+    override fun navigateTo(key: ScreenKey) = router.navigateTo(key)
 
     @SuppressLint("RestrictedApi")
     override fun observeBackStackDepth(): StateFlow<Int> {
         val state = viewModel.stateOrNull(level) ?: return MutableStateFlow(0)
         return when (state.method.value) {
             NavigationMethod.FRAGMENT_MANAGER,
-            NavigationMethod.CICERONE,
-                -> {
+            NavigationMethod.CICERONE -> {
                 val flow = MutableStateFlow(fmConsecutiveBDepth())
-                fragmentManager.addOnBackStackChangedListener {
-                    flow.value = fmConsecutiveBDepth()
-                }
+                fragmentManager.addOnBackStackChangedListener { flow.value = fmConsecutiveBDepth() }
                 flow
             }
-
             NavigationMethod.SIMPLE_STACK ->
                 state.stack
                     .map { stack -> stack.takeLastWhile { it is ScreenKey.B }.size - 1 }
                     .stateIn(scope, SharingStarted.Eagerly, 0)
-
             NavigationMethod.JETPACK ->
                 routerFactory.getNavController()!!
                     .currentBackStack
                     .map { entries ->
-                        entries.takeLastWhile {
-                            it.destination.id == R.id.screenBFragment
-                        }.size - 1
+                        entries.takeLastWhile { it.destination.id == R.id.screenBFragment }.size - 1
                     }
                     .stateIn(scope, SharingStarted.Eagerly, 0)
         }
     }
 
-    private fun fmConsecutiveBDepth(): Int =
-        (0 until fragmentManager.backStackEntryCount)
-            .map { fragmentManager.getBackStackEntryAt(it).name }
-            .takeLastWhile { it?.startsWith("screen_b_") == true }
-            .size - 1
-
     fun onResume() {
-        val state = viewModel.stateOrNull(level) ?: return
-        when (state.method.value) {
-            NavigationMethod.CICERONE ->
-                state.ciceroneRouter.getNavigatorHolder().setNavigator(getCiceroneNavigator())
-
-            NavigationMethod.SIMPLE_STACK ->
-                state.simpleBackstack.setStateChanger(getSimpleStateChanger())
-
-            else -> Unit
-        }
+        if (viewModel.stateOrNull(level) == null) return
+        router.attach()
     }
 
     fun onPause() {
-        val state = viewModel.stateOrNull(level) ?: return
-        when (state.method.value) {
-            NavigationMethod.CICERONE ->
-                state.ciceroneRouter.getNavigatorHolder().removeNavigator()
-
-            NavigationMethod.SIMPLE_STACK ->
-                state.simpleBackstack.detachStateChanger()
-
-            else -> Unit
-        }
+        if (viewModel.stateOrNull(level) == null) return
+        router.detach()
     }
 
     fun onDestroyView() {
-        val state = viewModel.stateOrNull(level) ?: return
-        if (state.method.value == NavigationMethod.SIMPLE_STACK) {
-            state.simpleBackstack.detachStateChanger()
+        if (viewModel.stateOrNull(level) == null) return
+        router.detach()
+    }
+
+    fun handleBack(): Boolean {
+        if (router.back()) {
+            viewModel.pop(level)
+            return true
         }
+        onEmptyStack()
+        return false
     }
 
     private fun activateRouter(method: NavigationMethod) {
         router = routerFactory.create(method)
-        when (method) {
-            NavigationMethod.CICERONE ->
-                viewModel.state(level).ciceroneRouter
-                    .getNavigatorHolder().setNavigator(getCiceroneNavigator())
-
-            NavigationMethod.SIMPLE_STACK ->
-                viewModel.state(level).simpleBackstack
-                    .setStateChanger(getSimpleStateChanger())
-
-            else -> Unit
-        }
+        router.attach()
     }
 
     private fun setupInitialScreen(method: NavigationMethod) {
         when (method) {
             NavigationMethod.SIMPLE_STACK,
-            NavigationMethod.JETPACK,
-                -> Unit
-
-            else -> fragmentManager.commitNow {  // ← commitNow
+            NavigationMethod.JETPACK -> Unit
+            else -> fragmentManager.commitNow {
                 replace(
                     containerId,
                     ScreenAFragment.newInstance(nestingLevel = level),
@@ -176,22 +132,22 @@ class NavigationHostDelegate(
     }
 
     private fun replayLevel() {
-        val currentMethod = viewModel.state(level).method.value
+        val method = viewModel.state(level).method.value
         val entries = viewModel.entriesForLevel(level)
         clearContainerForReplay()
-        if (currentMethod == NavigationMethod.SIMPLE_STACK) {
+        if (method == NavigationMethod.SIMPLE_STACK) {
             viewModel.state(level).simpleBackstack.setHistory(
                 History.single(ScreenKey.A(nestingLevel = level)),
                 StateChange.REPLACE,
             )
         }
-        activateRouter(currentMethod)
-        setupInitialScreen(currentMethod)
+        activateRouter(method)
+        setupInitialScreen(method)
         fragmentManager.executePendingTransactions()
         for (entry in entries) {
             router.navigateTo(entry.key)
             fragmentManager.executePendingTransactions()
-            if (entry.key is ScreenKey.C) break  // вложенный C сам завершит свой уровень
+            if (entry.key is ScreenKey.C) break
         }
     }
 
@@ -201,71 +157,35 @@ class NavigationHostDelegate(
         val stranded = fragmentManager.fragments
             .filter { it.id == containerId && !it.isRemoving }
         if (stranded.isNotEmpty()) {
-            fragmentManager.commitNow {
-                stranded.forEach { remove(it) }
-            }
+            fragmentManager.commitNow { stranded.forEach { remove(it) } }
         }
     }
 
-    private fun subscribeToMethodChanges(lifecycleOwner: LifecycleOwner) {
+    private fun observeMethodChanges(lifecycleOwner: LifecycleOwner) {
         lifecycleOwner.lifecycleScope.launch {
-            var previousMethod = viewModel.state(level).method.value
-            viewModel.state(level).method
-                .drop(1)
-                .collect { newMethod ->
-                    switchMethod(from = previousMethod, to = newMethod)
-                    previousMethod = newMethod
-                }
+            viewModel.state(level).method.drop(1).collect { newMethod ->
+                switchMethod(to = newMethod)
+            }
         }
-
     }
 
-
-    private fun switchMethod(from: NavigationMethod, to: NavigationMethod) {
-        when (from) {
-            NavigationMethod.CICERONE -> {
-                viewModel.state(level).ciceroneRouter.getNavigatorHolder().removeNavigator()
-                router.clear()
-            }
-
-            NavigationMethod.SIMPLE_STACK -> {
-                viewModel.state(level).simpleBackstack.detachStateChanger()
-                router.clear()
-                val stranded = fragmentManager.fragments
-                    .filter { it.id == containerId && !it.isRemoving }
-                if (stranded.isNotEmpty()) {
-                    fragmentManager.commitNow { stranded.forEach { remove(it) } }
-                }
-            }
-
-            NavigationMethod.JETPACK -> {
-                routerFactory.removeNavHostIfPresent()
-            }
-
-            NavigationMethod.FRAGMENT_MANAGER -> {
-                router.clear()
-            }
-        }
-
+    private fun switchMethod(to: NavigationMethod) {
+        router.detach()
+        router.clearContainer()
         if (to == NavigationMethod.SIMPLE_STACK) {
             viewModel.state(level).simpleBackstack.setHistory(
                 History.single(ScreenKey.A(nestingLevel = level)),
                 StateChange.REPLACE,
             )
         }
-
         activateRouter(to)
         setupInitialScreen(to)
         fragmentManager.executePendingTransactions()
     }
 
-    fun handleBack(): Boolean {
-        val handled = router.back()
-        if (handled) {
-            viewModel.pop(level)
-            return true
-        }
-        onEmptyStack()
-        return false
-    }
+    private fun fmConsecutiveBDepth(): Int =
+        (0 until fragmentManager.backStackEntryCount)
+            .map { fragmentManager.getBackStackEntryAt(it).name }
+            .takeLastWhile { it?.startsWith("screen_b_") == true }
+            .size - 1
 }

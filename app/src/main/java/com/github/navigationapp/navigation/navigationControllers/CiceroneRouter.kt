@@ -1,16 +1,18 @@
 package com.github.navigationapp.navigation.navigationControllers
 
-import android.util.Log
 import androidx.fragment.app.FragmentManager
+import com.github.terrakok.cicerone.NavigatorHolder
 import com.github.terrakok.cicerone.Router
+import com.github.terrakok.cicerone.androidx.AppNavigator
 
 class CiceroneRouter(
     private val router: Router,
     private val fragmentManager: FragmentManager,
+    private val navigatorHolder: NavigatorHolder,
+    private val getNavigator: () -> AppNavigator,
 ) : NavigationRouter {
 
     override fun navigateTo(key: ScreenKey) {
-        Log.d("NAV", "CiceroneRouter.navigateTo: $key, navigatorHolder: ${this.router}")
         router.navigateTo(key.toCiceroneScreen())
     }
 
@@ -20,7 +22,11 @@ class CiceroneRouter(
         return true
     }
 
-    override fun clear() {
+    override fun attach() = navigatorHolder.setNavigator(getNavigator())
+
+    override fun detach() = navigatorHolder.removeNavigator()
+
+    override fun clearContainer() {
         fragmentManager.popBackStackImmediate(null, FragmentManager.POP_BACK_STACK_INCLUSIVE)
     }
 }

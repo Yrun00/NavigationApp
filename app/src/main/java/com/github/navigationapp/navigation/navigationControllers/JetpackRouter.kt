@@ -3,9 +3,9 @@ package com.github.navigationapp.navigation.navigationControllers
 import androidx.navigation.NavController
 import com.github.navigationapp.R
 
-
 class JetpackRouter(
     private val navController: NavController,
+    private val removeNavHost: () -> Unit,
 ) : NavigationRouter {
 
     override fun navigateTo(key: ScreenKey) {
@@ -15,14 +15,7 @@ class JetpackRouter(
         )
     }
 
-    override fun back(): Boolean {
-        return navController.popBackStack()
-    }
+    override fun back(): Boolean = navController.popBackStack()
 
-    override fun clear() {
-        navController.popBackStack(
-            destinationId = R.id.screenAFragment,
-            inclusive = false,
-        )
-    }
+    override fun clearContainer() = removeNavHost()
 }

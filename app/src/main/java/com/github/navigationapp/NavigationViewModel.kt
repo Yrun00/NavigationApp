@@ -70,11 +70,6 @@ class NavigationViewModel : ViewModel() {
         updateNeedsReplay()
     }
 
-    // needsReplay = true если в стеке есть хотя бы одна смена метода навигации.
-    // Это означает, что при пересоздании Activity FM(или другая бибилотека навигации)
-    // не сможет восстановить фрагменты корректно
-    //  — нужено удалить системый бэкстак и
-    //  программно восстановить корректный.
     private fun updateNeedsReplay() {
         needsReplay = _replayStack
             .zipWithNext()
@@ -86,5 +81,3 @@ class NavigationViewModel : ViewModel() {
         super.onCleared()
     }
 }
-
-
