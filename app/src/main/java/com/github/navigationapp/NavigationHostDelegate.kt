@@ -21,10 +21,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 
 class NavigationHostDelegate(
     private val fragmentManager: FragmentManager,
@@ -36,7 +34,8 @@ class NavigationHostDelegate(
     private val onEmptyStack: () -> Unit,
 ) : NavigationHost {
 
-    private lateinit var router: NavigationRouter
+    private var router: NavigationRouter? = null
+    private var activeMethod: NavigationMethod? = null
     private lateinit var routerFactory: RouterFactory
     private lateinit var scope: CoroutineScope
 
@@ -52,17 +51,15 @@ class NavigationHostDelegate(
         )
         when {
             viewModel.needsReplay -> replayLevel()
-            savedInstanceState == null -> {
-                val method = viewModel.state(level).method.value
-                activateRouter(method)
-                setupInitialScreen(method)
-            }
-            else -> activateRouter(viewModel.state(level).method.value)
+            savedInstanceState == null -> placeScreenA()
+            else -> restoreRouter()
         }
-        observeMethodChanges(lifecycleOwner)
     }
 
-    override fun navigateTo(key: ScreenKey) = router.navigateTo(key)
+    override fun navigateTo(key: ScreenKey) {
+        ensureRouter()
+        router!!.navigateTo(key)
+    }
 
     @SuppressLint("RestrictedApi")
     override fun observeBackStackDepth(): StateFlow<Int> {
@@ -90,21 +87,22 @@ class NavigationHostDelegate(
 
     fun onResume() {
         if (viewModel.stateOrNull(level) == null) return
-        router.attach()
+        router?.attach()
     }
 
     fun onPause() {
         if (viewModel.stateOrNull(level) == null) return
-        router.detach()
+        router?.detach()
     }
 
     fun onDestroyView() {
         if (viewModel.stateOrNull(level) == null) return
-        router.detach()
+        router?.detach()
     }
 
     fun handleBack(): Boolean {
-        if (router.back()) {
+        val r = router
+        if (r != null && r.back()) {
             viewModel.pop(level)
             return true
         }
@@ -112,9 +110,56 @@ class NavigationHostDelegate(
         return false
     }
 
+    /**
+     * Places Screen A directly into the container without any router.
+     * Used on fresh start (savedInstanceState == null, no replay).
+     */
+    private fun placeScreenA() {
+        fragmentManager.commitNow {
+            replace(
+                containerId,
+                ScreenAFragment.newInstance(level = level),
+                ScreenKey.A(level = level).getFragmentTag(),
+            )
+        }
+    }
+
+    /**
+     * Lazily creates or recreates the router when navigation is actually needed.
+     * If the chosen method changed since the router was last created, tears down
+     * the old router and spins up a new one.
+     */
+    private fun ensureRouter() {
+        val desiredMethod = viewModel.state(level).method.value
+
+        if (router != null && activeMethod == desiredMethod) return
+
+        // Tear down previous router if it exists and method changed
+        router?.let { old ->
+            old.detach()
+            old.clearContainer()
+        }
+
+        // For SimpleStack: reset history before attaching state changer
+        if (desiredMethod == NavigationMethod.SIMPLE_STACK) {
+            viewModel.state(level).simpleBackstack.setHistory(
+                History.single(ScreenKey.A(level = level)),
+                StateChange.REPLACE,
+            )
+        }
+
+        activateRouter(desiredMethod)
+
+        // FM/Cicerone need Screen A placed manually; SS/Jetpack handle it themselves
+        setupInitialScreen(desiredMethod)
+        fragmentManager.executePendingTransactions()
+    }
+
     private fun activateRouter(method: NavigationMethod) {
-        router = routerFactory.create(method)
-        router.attach()
+        val r = routerFactory.create(method)
+        r.attach()
+        router = r
+        activeMethod = method
     }
 
     private fun setupInitialScreen(method: NavigationMethod) {
@@ -131,6 +176,21 @@ class NavigationHostDelegate(
         }
     }
 
+    /**
+     * Restores the router after configuration change (savedInstanceState != null).
+     * Only creates a router if one was active before (i.e. user had navigated).
+     */
+    private fun restoreRouter() {
+        val state = viewModel.stateOrNull(level) ?: return
+        val stack = state.stack.value
+        // If stack has more than just [A], a router was active — restore it
+        if (stack.size > 1) {
+            val method = state.method.value
+            activateRouter(method)
+        }
+        // Otherwise: user was on Screen A with no router — leave it as is
+    }
+
     private fun replayLevel() {
         val method = viewModel.state(level).method.value
         val entries = viewModel.entriesForLevel(level)
@@ -145,7 +205,7 @@ class NavigationHostDelegate(
         setupInitialScreen(method)
         fragmentManager.executePendingTransactions()
         for (entry in entries) {
-            router.navigateTo(entry.key)
+            router!!.navigateTo(entry.key)
             fragmentManager.executePendingTransactions()
             if (entry.key is ScreenKey.C) break
         }
@@ -159,28 +219,6 @@ class NavigationHostDelegate(
         if (stranded.isNotEmpty()) {
             fragmentManager.commitNow { stranded.forEach { remove(it) } }
         }
-    }
-
-    private fun observeMethodChanges(lifecycleOwner: LifecycleOwner) {
-        lifecycleOwner.lifecycleScope.launch {
-            viewModel.state(level).method.drop(1).collect { newMethod ->
-                switchMethod(to = newMethod)
-            }
-        }
-    }
-
-    private fun switchMethod(to: NavigationMethod) {
-        router.detach()
-        router.clearContainer()
-        if (to == NavigationMethod.SIMPLE_STACK) {
-            viewModel.state(level).simpleBackstack.setHistory(
-                History.single(ScreenKey.A(level = level)),
-                StateChange.REPLACE,
-            )
-        }
-        activateRouter(to)
-        setupInitialScreen(to)
-        fragmentManager.executePendingTransactions()
     }
 
     private fun fmConsecutiveBDepth(): Int =
