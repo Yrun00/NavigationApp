@@ -2,13 +2,13 @@ package com.github.navigationapp.navigation.navigationControllers
 
 import androidx.annotation.IdRes
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.commit
 import androidx.fragment.app.commitNow
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.github.navigationapp.NavigationState
 import com.github.navigationapp.R
 import com.github.navigationapp.navigation.NavigationMethod
+import com.github.navigationapp.navigation.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
 
@@ -56,7 +56,7 @@ class RouterFactory(
 
     fun removeNavHostIfPresent() {
         fragmentManager.findFragmentByTag(navHostTag)?.let { navHost ->
-            fragmentManager.commit { remove(navHost) }
+            fragmentManager.commitNow { remove(navHost) }
             fragmentManager.executePendingTransactions()
         }
     }

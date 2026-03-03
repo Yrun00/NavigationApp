@@ -3,7 +3,7 @@ package com.github.navigationapp
 import androidx.lifecycle.ViewModel
 import com.github.navigationapp.navigation.NavEntry
 import com.github.navigationapp.navigation.NavigationMethod
-import com.github.navigationapp.navigation.navigationControllers.ScreenKey
+import com.github.navigationapp.navigation.ScreenKey
 
 class NavigationViewModel : ViewModel() {
 
