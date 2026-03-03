@@ -14,6 +14,7 @@ import com.github.navigationapp.navigation.ScreenKey
 import com.github.navigationapp.navigation.navigationControllers.NavigationRouter
 import com.github.navigationapp.navigation.navigationControllers.RouterFactory
 import com.github.terrakok.cicerone.androidx.AppNavigator
+import com.zhuinden.simplestack.Backstack
 import com.zhuinden.simplestack.History
 import com.zhuinden.simplestack.StateChange
 import com.zhuinden.simplestack.StateChanger
@@ -37,6 +38,7 @@ class NavigationHostDelegate(
     private var router: NavigationRouter? = null
     private var activeMethod: NavigationMethod? = null
     private var coroutineScope: CoroutineScope? = null
+    private var backStackDepthCleanup: (() -> Unit)? = null
 
     private val routerFactory = RouterFactory(
         fragmentManager = fragmentManager,
@@ -69,14 +71,29 @@ class NavigationHostDelegate(
             NavigationMethod.CICERONE,
                 -> {
                 val flow = MutableStateFlow(fmConsecutiveBDepth())
-                fragmentManager.addOnBackStackChangedListener { flow.value = fmConsecutiveBDepth() }
+                val listener = FragmentManager.OnBackStackChangedListener {
+                    flow.value = fmConsecutiveBDepth()
+                }
+                fragmentManager.addOnBackStackChangedListener(listener)
+                backStackDepthCleanup = {
+                    fragmentManager.removeOnBackStackChangedListener(listener)
+                }
                 flow
             }
 
-            NavigationMethod.SIMPLE_STACK ->
-                state.stack
-                    .map { stack -> stack.takeLastWhile { it is ScreenKey.B }.size - 1 }
-                    .stateIn(coroutineScope!!, SharingStarted.Eagerly, 0)
+            NavigationMethod.SIMPLE_STACK -> {
+                val backstack = state.simpleBackstack
+                fun currentDepth() = backstack.getHistory<ScreenKey>()
+                    .takeLastWhile { it is ScreenKey.B }.size - 1
+
+                val flow = MutableStateFlow(currentDepth())
+                val listener = Backstack.CompletionListener { flow.value = currentDepth() }
+                backstack.addStateChangeCompletionListener(listener)
+                backStackDepthCleanup = {
+                    backstack.removeStateChangeCompletionListener(listener)
+                }
+                flow
+            }
 
             NavigationMethod.JETPACK ->
                 routerFactory.getNavController()!!
@@ -84,8 +101,14 @@ class NavigationHostDelegate(
                     .map { entries ->
                         entries.takeLastWhile { it.destination.id == R.id.screenBFragment }.size - 1
                     }
-                    .stateIn(coroutineScope!!, SharingStarted.Eagerly, 0)
+                    .stateIn(coroutineScope!!, SharingStarted.Lazily, 0)
         }
+    }
+
+    private fun fmConsecutiveBDepth(): Int {
+        return (0 until fragmentManager.backStackEntryCount)
+            .map { fragmentManager.getBackStackEntryAt(it).name }
+            .takeLastWhile { it?.startsWith("screen_b_") == true }.size - 1
     }
 
     fun onResume() {
@@ -99,6 +122,8 @@ class NavigationHostDelegate(
     }
 
     fun onDestroyView() {
+        backStackDepthCleanup?.invoke()
+        backStackDepthCleanup = null
         if (viewModel.stateOrNull(level) == null) return
         router?.detach()
     }
@@ -185,10 +210,4 @@ class NavigationHostDelegate(
             fragmentManager.commitNow { stranded.forEach { remove(it) } }
         }
     }
-
-    private fun fmConsecutiveBDepth(): Int =
-        (0 until fragmentManager.backStackEntryCount)
-            .map { fragmentManager.getBackStackEntryAt(it).name }
-            .takeLastWhile { it?.startsWith("screen_b_") == true }
-            .size - 1
 }
