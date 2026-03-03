@@ -2,8 +2,6 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 
-    id("com.google.dagger.hilt.android")
-    id("com.google.devtools.ksp")
     id("kotlin-parcelize")
 }
 
@@ -36,6 +34,7 @@ android {
     kotlin {
         jvmToolchain(17)
     }
+
     buildFeatures {
         compose = true
     }
@@ -58,13 +57,10 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.android.compiler)
     implementation(libs.cicerone)
     implementation(libs.simple.stack)
     implementation(libs.simple.stack.extensions)
