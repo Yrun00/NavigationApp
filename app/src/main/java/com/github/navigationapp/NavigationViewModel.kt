@@ -46,7 +46,6 @@ class NavigationViewModel : ViewModel() {
         val result = state(level).pop()
         if (result) {
             _replayStack.removeLastOrNull()
-            updateNeedsReplay()
         }
         return result
     }
@@ -61,7 +60,7 @@ class NavigationViewModel : ViewModel() {
         _states[level]?.dispose()
         _states.remove(level)
         val cutIndex = _replayStack.indexOfLast {
-            it.key is ScreenKey.C && (it.key as ScreenKey.C).level == level
+            it.key is ScreenKey.C && it.key.level == level
         }
         if (cutIndex >= 0) {
             _replayStack.subList(cutIndex, _replayStack.size).clear()

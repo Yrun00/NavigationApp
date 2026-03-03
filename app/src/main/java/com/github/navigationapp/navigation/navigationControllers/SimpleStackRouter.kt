@@ -5,6 +5,8 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commitNow
 import com.github.navigationapp.navigation.ScreenKey
 import com.zhuinden.simplestack.Backstack
+import com.zhuinden.simplestack.History
+import com.zhuinden.simplestack.StateChange
 import com.zhuinden.simplestack.StateChanger
 
 class SimpleStackRouter(
@@ -23,6 +25,10 @@ class SimpleStackRouter(
     override fun detach() = backstack.detachStateChanger()
 
     override fun clearContainer() {
+        backstack.setHistory(
+            History.single(backstack.root<Any>()),
+            StateChange.REPLACE,
+        )
         val stranded = fragmentManager.fragments
             .filter { it.id == containerId && !it.isRemoving }
         if (stranded.isNotEmpty()) {
