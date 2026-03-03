@@ -1,7 +1,7 @@
 package com.github.navigationapp
 
 import com.github.navigationapp.navigation.NavigationMethod
-import com.github.navigationapp.navigation.ScreenKey
+import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import com.github.terrakok.cicerone.Cicerone
 import com.github.terrakok.cicerone.Router
 import com.zhuinden.simplestack.Backstack
@@ -13,20 +13,19 @@ import kotlinx.coroutines.flow.update
 
 class NavigationState(val level: Int, parentState: NavigationState? = null) {
 
-    private val _stack = MutableStateFlow<List<ScreenKey>>(listOf(ScreenKey.A(nestingLevel = level)))
+    private val _stack = MutableStateFlow<List<ScreenKey>>(listOf(ScreenKey.A(level = level)))
     val stack: StateFlow<List<ScreenKey>> = _stack.asStateFlow()
 
     private val _method = MutableStateFlow(
         parentState?.method?.value ?: NavigationMethod.FRAGMENT_MANAGER,
     )
-
     val method: StateFlow<NavigationMethod> = _method.asStateFlow()
 
     val ciceroneRouter: Cicerone<Router> by lazy { Cicerone.create() }
 
     val simpleBackstack: Backstack by lazy {
         Backstack().apply {
-            this.setup(History.single(ScreenKey.A(nestingLevel = level)))
+            this.setup(History.single(ScreenKey.A(level = level)))
         }
     }
 
@@ -48,4 +47,3 @@ class NavigationState(val level: Int, parentState: NavigationState? = null) {
         }
     }
 }
-

@@ -9,7 +9,6 @@ import androidx.navigation.fragment.NavHostFragment
 import com.github.navigationapp.NavigationState
 import com.github.navigationapp.R
 import com.github.navigationapp.navigation.NavigationMethod
-import com.github.navigationapp.navigation.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
 
@@ -64,7 +63,7 @@ class RouterFactory(
 
     private fun ensureNavHostFragment() {
         if (fragmentManager.findFragmentByTag(navHostTag) != null) return
-        val startArgs = ScreenKey.A(nestingLevel = level).toBundle()
+        val startArgs = ScreenKey.A(level = level).toBundle()
         val navHostFragment = NavHostFragment.create(R.navigation.nav_graph, startArgs)
         fragmentManager.commitNow {
             setReorderingAllowed(true)

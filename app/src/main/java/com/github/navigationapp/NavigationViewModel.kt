@@ -3,7 +3,7 @@ package com.github.navigationapp
 import androidx.lifecycle.ViewModel
 import com.github.navigationapp.navigation.NavEntry
 import com.github.navigationapp.navigation.NavigationMethod
-import com.github.navigationapp.navigation.ScreenKey
+import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 
 class NavigationViewModel : ViewModel() {
 
@@ -61,7 +61,7 @@ class NavigationViewModel : ViewModel() {
         _states[level]?.dispose()
         _states.remove(level)
         val cutIndex = _replayStack.indexOfLast {
-            it.key is ScreenKey.C && (it.key as ScreenKey.C).hostingLevel == level
+            it.key is ScreenKey.C && (it.key as ScreenKey.C).level == level
         }
         if (cutIndex >= 0) {
             _replayStack.subList(cutIndex, _replayStack.size).clear()

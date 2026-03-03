@@ -12,8 +12,7 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.github.navigationapp.NavigationViewModel
-import com.github.navigationapp.navigation.ScreenKey
-
+import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 
 class ScreenBFragment : Fragment() {
 
@@ -32,7 +31,6 @@ class ScreenBFragment : Fragment() {
     ): View = ComposeView(requireContext()).apply {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
-
             val host = findNavigationHost()
             val backStackDepth by host.observeBackStackDepth().collectAsState()
 
@@ -40,7 +38,7 @@ class ScreenBFragment : Fragment() {
                 recursionDepthFromBundle = depthFromBundle,
                 backStackDepth = backStackDepth,
                 onOpenAnotherB = {
-                    val key = ScreenKey.B(depth = depthFromBundle + 1, nestingLevel = nestingLevel)
+                    val key = ScreenKey.B(depth = depthFromBundle + 1, level = nestingLevel)
                     viewModel.push(nestingLevel, key)
                     host.navigateTo(key)
                 },

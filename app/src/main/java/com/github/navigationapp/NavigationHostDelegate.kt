@@ -10,9 +10,9 @@ import androidx.lifecycle.lifecycleScope
 import com.github.navigationapp.fragments.ScreenAFragment
 import com.github.navigationapp.navigation.NavigationHost
 import com.github.navigationapp.navigation.NavigationMethod
-import com.github.navigationapp.navigation.ScreenKey
 import com.github.navigationapp.navigation.navigationControllers.NavigationRouter
 import com.github.navigationapp.navigation.navigationControllers.RouterFactory
+import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.History
 import com.zhuinden.simplestack.StateChange
@@ -125,7 +125,7 @@ class NavigationHostDelegate(
                 replace(
                     containerId,
                     ScreenAFragment.newInstance(nestingLevel = level),
-                    ScreenKey.A(nestingLevel = level).getFragmentTag(),
+                    ScreenKey.A(level = level).getFragmentTag(),
                 )
             }
         }
@@ -137,7 +137,7 @@ class NavigationHostDelegate(
         clearContainerForReplay()
         if (method == NavigationMethod.SIMPLE_STACK) {
             viewModel.state(level).simpleBackstack.setHistory(
-                History.single(ScreenKey.A(nestingLevel = level)),
+                History.single(ScreenKey.A(level = level)),
                 StateChange.REPLACE,
             )
         }
@@ -174,7 +174,7 @@ class NavigationHostDelegate(
         router.clearContainer()
         if (to == NavigationMethod.SIMPLE_STACK) {
             viewModel.state(level).simpleBackstack.setHistory(
-                History.single(ScreenKey.A(nestingLevel = level)),
+                History.single(ScreenKey.A(level = level)),
                 StateChange.REPLACE,
             )
         }

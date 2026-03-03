@@ -12,7 +12,7 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.github.navigationapp.NavigationViewModel
-import com.github.navigationapp.navigation.ScreenKey
+import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 
 class ScreenAFragment : Fragment() {
 
@@ -39,12 +39,12 @@ class ScreenAFragment : Fragment() {
                     viewModel.switchMethod(nestingLevel, it)
                 },
                 onNavigateToB = {
-                    val key = ScreenKey.B(depth = 0, nestingLevel = nestingLevel)
+                    val key = ScreenKey.B(depth = 0, level = nestingLevel)
                     viewModel.push(nestingLevel, key)
                     findNavigationHost().navigateTo(key)
                 },
                 onNavigateToC = {
-                    val key = ScreenKey.C(hostingLevel = nestingLevel + 1)
+                    val key = ScreenKey.C(level = nestingLevel + 1)
                     viewModel.push(nestingLevel, key)
                     findNavigationHost().navigateTo(key)
                 },
@@ -60,5 +60,3 @@ class ScreenAFragment : Fragment() {
         }
     }
 }
-
-
