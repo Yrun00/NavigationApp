@@ -27,7 +27,8 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
     private var delegate: NavigationHostDelegate? = null
 
     private val ciceroneNavigator by lazy {
-        object : AppNavigator(requireActivity(), R.id.nested_fragment_container, childFragmentManager) {}
+        object :
+            AppNavigator(requireActivity(), R.id.nested_fragment_container, childFragmentManager) {}
     }
 
     private val simpleStateChanger by lazy {
@@ -52,12 +53,12 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
         ).also { it.initialize(savedInstanceState, viewLifecycleOwner) }
 
         requireActivity().onBackPressedDispatcher
-            .addCallback(viewLifecycleOwner) { checkNotNull(delegate).handleBack() }
+            .addCallback(viewLifecycleOwner) { delegate!!.handleBack() }
     }
 
-    override fun navigateTo(key: ScreenKey) = checkNotNull(delegate).navigateTo(key)
+    override fun navigateTo(key: ScreenKey) = delegate!!.navigateTo(key)
 
-    override fun observeBackStackDepth(): StateFlow<Int> = checkNotNull(delegate).observeBackStackDepth()
+    override fun observeBackStackDepth(): StateFlow<Int> = delegate!!.observeBackStackDepth()
 
     override fun onResume() {
         super.onResume()
@@ -81,8 +82,10 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
         when (viewModel.state(parentLevel).method.value) {
             NavigationMethod.SIMPLE_STACK ->
                 viewModel.state(parentLevel).simpleBackstack.goBack()
+
             NavigationMethod.JETPACK ->
                 findNavController().popBackStack()
+
             else ->
                 parentFragmentManager.popBackStack()
         }

@@ -36,7 +36,7 @@ class NavigationHostDelegate(
 
     private var router: NavigationRouter? = null
     private var activeMethod: NavigationMethod? = null
-    private var scope: CoroutineScope? = null
+    private var coroutineScope: CoroutineScope? = null
 
     private val routerFactory = RouterFactory(
         fragmentManager = fragmentManager,
@@ -48,7 +48,7 @@ class NavigationHostDelegate(
     )
 
     fun initialize(savedInstanceState: Bundle?, lifecycleOwner: LifecycleOwner) {
-        scope = lifecycleOwner.lifecycleScope
+        coroutineScope = lifecycleOwner.lifecycleScope
         when {
             viewModel.needsReplay -> replayLevel()
             savedInstanceState == null -> placeScreenA()
@@ -58,31 +58,33 @@ class NavigationHostDelegate(
 
     override fun navigateTo(key: ScreenKey) {
         ensureRouter()
-        checkNotNull(router).navigateTo(key)
+        router!!.navigateTo(key)
     }
 
     @SuppressLint("RestrictedApi")
     override fun observeBackStackDepth(): StateFlow<Int> {
         val state = viewModel.stateOrNull(level) ?: return MutableStateFlow(0)
-        val coroutineScope = checkNotNull(scope) { "initialize() must be called before observeBackStackDepth()" }
         return when (state.method.value) {
             NavigationMethod.FRAGMENT_MANAGER,
-            NavigationMethod.CICERONE -> {
+            NavigationMethod.CICERONE,
+                -> {
                 val flow = MutableStateFlow(fmConsecutiveBDepth())
                 fragmentManager.addOnBackStackChangedListener { flow.value = fmConsecutiveBDepth() }
                 flow
             }
+
             NavigationMethod.SIMPLE_STACK ->
                 state.stack
                     .map { stack -> stack.takeLastWhile { it is ScreenKey.B }.size - 1 }
-                    .stateIn(coroutineScope, SharingStarted.Eagerly, 0)
+                    .stateIn(coroutineScope!!, SharingStarted.Eagerly, 0)
+
             NavigationMethod.JETPACK ->
                 routerFactory.getNavController()!!
                     .currentBackStack
                     .map { entries ->
                         entries.takeLastWhile { it.destination.id == R.id.screenBFragment }.size - 1
                     }
-                    .stateIn(coroutineScope, SharingStarted.Eagerly, 0)
+                    .stateIn(coroutineScope!!, SharingStarted.Eagerly, 0)
         }
     }
 
@@ -111,10 +113,6 @@ class NavigationHostDelegate(
         return false
     }
 
-    /**
-     * Places Screen A directly into the container without any router.
-     * Used on fresh start (savedInstanceState == null, no replay).
-     */
     private fun placeScreenA() {
         fragmentManager.commitNow {
             replace(
@@ -125,11 +123,6 @@ class NavigationHostDelegate(
         }
     }
 
-    /**
-     * Lazily creates or recreates the router when navigation is actually needed.
-     * If the chosen method changed since the router was last created, tears down
-     * the old router and spins up a new one.
-     */
     private fun ensureRouter() {
         val desiredMethod = viewModel.state(level).method.value
 
@@ -162,7 +155,9 @@ class NavigationHostDelegate(
     private fun setupInitialScreen(method: NavigationMethod) {
         when (method) {
             NavigationMethod.SIMPLE_STACK,
-            NavigationMethod.JETPACK -> Unit
+            NavigationMethod.JETPACK,
+                -> Unit
+
             else -> fragmentManager.commitNow {
                 replace(
                     containerId,
@@ -173,10 +168,6 @@ class NavigationHostDelegate(
         }
     }
 
-    /**
-     * Restores the router after configuration change (savedInstanceState != null).
-     * Only creates a router if one was active before (i.e. user had navigated away from A).
-     */
     private fun restoreRouter() {
         val state = viewModel.stateOrNull(level) ?: return
         if (state.stack.value.size > 1) {
@@ -198,7 +189,7 @@ class NavigationHostDelegate(
         setupInitialScreen(method)
         fragmentManager.executePendingTransactions()
         for (entry in entries) {
-            checkNotNull(router).navigateTo(entry.key)
+            router!!.navigateTo(entry.key)
             fragmentManager.executePendingTransactions()
             if (entry.key is ScreenKey.C) break
         }
