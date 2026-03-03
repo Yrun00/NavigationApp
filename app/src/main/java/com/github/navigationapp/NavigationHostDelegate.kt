@@ -128,7 +128,7 @@ class NavigationHostDelegate(
 
         if (router != null && activeMethod == desiredMethod) return
 
-        router?.let { old ->
+        router!!.let { old ->
             old.detach()
             old.clearContainer()
         }
@@ -146,9 +146,9 @@ class NavigationHostDelegate(
     }
 
     private fun activateRouter(method: NavigationMethod) {
-        val r = routerFactory.create(method)
-        r.attach()
-        router = r
+        val router = routerFactory.create(method)
+        router.attach()
+        this.router = router
         activeMethod = method
     }
 

@@ -21,16 +21,11 @@ import kotlinx.coroutines.flow.StateFlow
 class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
 
     private val viewModel: NavigationViewModel by activityViewModels()
-
     override val level: Int get() = arguments?.getInt(ARG_LEVEL) ?: 1
-
     private var delegate: NavigationHostDelegate? = null
-
     private val ciceroneNavigator by lazy {
-        object :
-            AppNavigator(requireActivity(), R.id.nested_fragment_container, childFragmentManager) {}
+        AppNavigator(requireActivity(), R.id.nested_fragment_container, childFragmentManager)
     }
-
     private val simpleStateChanger by lazy {
         StateChanger { stateChange, callback ->
             NoAnimFragmentStateChanger(childFragmentManager, R.id.nested_fragment_container)
@@ -62,16 +57,16 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
 
     override fun onResume() {
         super.onResume()
-        delegate?.onResume()
+        delegate!!.onResume()
     }
 
     override fun onPause() {
-        delegate?.onPause()
+        delegate!!.onPause()
         super.onPause()
     }
 
     override fun onDestroyView() {
-        delegate?.onDestroyView()
+        delegate!!.onDestroyView()
         delegate = null
         super.onDestroyView()
     }
@@ -86,7 +81,7 @@ class ScreenCFragment : Fragment(R.layout.fragment_c), NavigationHost {
             NavigationMethod.JETPACK ->
                 findNavController().popBackStack()
 
-            else ->
+            NavigationMethod.FRAGMENT_MANAGER, NavigationMethod.CICERONE ->
                 parentFragmentManager.popBackStack()
         }
     }

@@ -30,7 +30,7 @@ class MainActivity : AppCompatActivity(), NavigationHost {
     }
 
     private val ciceroneNavigator by lazy {
-        object : AppNavigator(this, R.id.root_fragment_container, supportFragmentManager) {}
+        AppNavigator(this, R.id.root_fragment_container, supportFragmentManager)
     }
 
     private val simpleStateChanger by lazy {
