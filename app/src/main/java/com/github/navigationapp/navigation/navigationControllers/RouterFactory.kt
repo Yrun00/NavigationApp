@@ -25,7 +25,7 @@ class RouterFactory(
         )
 
         NavigationMethod.CICERONE -> CiceroneRouter(
-            router = state.ciceroneRouter,
+            router = state.ciceroneRouter.router,
             fragmentManager = fragmentManager,
         )
 

@@ -27,13 +27,12 @@ class NavigationViewModel : ViewModel() {
         private set
 
     fun entriesForLevel(targetLevel: Int): List<NavEntry> {
-        var level = 0
-        val result = mutableListOf<NavEntry>()
-        for (entry in _replayStack) {
-            if (level == targetLevel) result.add(entry)
-            if (entry.key is ScreenKey.C) level++
+        var currentLevel = 0
+        return _replayStack.filter { entry ->
+            val matches = currentLevel == targetLevel
+            if (entry.key is ScreenKey.C) currentLevel++
+            matches
         }
-        return result
     }
 
     fun push(level: Int, key: ScreenKey) {
@@ -71,7 +70,11 @@ class NavigationViewModel : ViewModel() {
         updateNeedsReplay()
     }
 
-
+    // needsReplay = true если в стеке есть хотя бы одна смена метода навигации.
+    // Это означает, что при пересоздании Activity FM(или другая бибилотека навигации)
+    // не сможет восстановить фрагменты корректно
+    //  — нужено удалить системый бэкстак и
+    //  программно восстановить корректный.
     private fun updateNeedsReplay() {
         needsReplay = _replayStack
             .zipWithNext()

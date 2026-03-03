@@ -115,7 +115,7 @@ class NavigationHostDelegate(
         val state = viewModel.stateOrNull(level) ?: return
         when (state.method.value) {
             NavigationMethod.CICERONE ->
-                state.cicerone.getNavigatorHolder().setNavigator(getCiceroneNavigator())
+                state.ciceroneRouter.getNavigatorHolder().setNavigator(getCiceroneNavigator())
 
             NavigationMethod.SIMPLE_STACK ->
                 state.simpleBackstack.setStateChanger(getSimpleStateChanger())
@@ -128,7 +128,7 @@ class NavigationHostDelegate(
         val state = viewModel.stateOrNull(level) ?: return
         when (state.method.value) {
             NavigationMethod.CICERONE ->
-                state.cicerone.getNavigatorHolder().removeNavigator()
+                state.ciceroneRouter.getNavigatorHolder().removeNavigator()
 
             NavigationMethod.SIMPLE_STACK ->
                 state.simpleBackstack.detachStateChanger()
@@ -148,7 +148,7 @@ class NavigationHostDelegate(
         router = routerFactory.create(method)
         when (method) {
             NavigationMethod.CICERONE ->
-                viewModel.state(level).cicerone
+                viewModel.state(level).ciceroneRouter
                     .getNavigatorHolder().setNavigator(getCiceroneNavigator())
 
             NavigationMethod.SIMPLE_STACK ->
@@ -169,7 +169,7 @@ class NavigationHostDelegate(
                 replace(
                     containerId,
                     ScreenAFragment.newInstance(nestingLevel = level),
-                    ScreenKey.A(nestingLevel = level).tag(),
+                    ScreenKey.A(nestingLevel = level).getFragmentTag(),
                 )
             }
         }
@@ -224,7 +224,7 @@ class NavigationHostDelegate(
     private fun switchMethod(from: NavigationMethod, to: NavigationMethod) {
         when (from) {
             NavigationMethod.CICERONE -> {
-                viewModel.state(level).cicerone.getNavigatorHolder().removeNavigator()
+                viewModel.state(level).ciceroneRouter.getNavigatorHolder().removeNavigator()
                 router.clear()
             }
 
