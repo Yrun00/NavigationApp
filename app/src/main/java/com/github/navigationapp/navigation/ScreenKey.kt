@@ -1,4 +1,4 @@
-package com.github.navigationapp.navigation.navigationControllers
+package com.github.navigationapp.navigation
 
 import android.os.Bundle
 import androidx.core.os.bundleOf
@@ -10,7 +10,6 @@ import com.github.navigationapp.fragments.ScreenCFragment
 import com.github.terrakok.cicerone.androidx.FragmentScreen
 import com.zhuinden.simplestackextensions.fragments.DefaultFragmentKey
 import kotlinx.parcelize.Parcelize
-
 
 @Parcelize
 sealed class ScreenKey : DefaultFragmentKey() {
@@ -52,7 +51,7 @@ sealed class ScreenKey : DefaultFragmentKey() {
         )
     }
 
-    fun toCiceroneScreen(): FragmentScreen = FragmentScreen(key = getFragmentTag()) {
+    fun toCiceroneScreen(): FragmentScreen = FragmentScreen.Companion(key = getFragmentTag()) {
         instantiateFragment().also { fragment ->
             fragment.arguments = (fragment.arguments ?: Bundle()).apply {
                 putParcelable(ARG_SCREEN_KEY, this@ScreenKey)

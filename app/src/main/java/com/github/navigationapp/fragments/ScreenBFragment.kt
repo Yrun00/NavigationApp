@@ -12,7 +12,7 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import com.github.navigationapp.NavigationViewModel
-import com.github.navigationapp.navigation.navigationControllers.ScreenKey
+import com.github.navigationapp.navigation.ScreenKey
 
 
 class ScreenBFragment : Fragment() {

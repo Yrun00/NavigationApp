@@ -12,8 +12,8 @@ import com.github.navigationapp.NavigationViewModel
 import com.github.navigationapp.R
 import com.github.navigationapp.navigation.NavigationHost
 import com.github.navigationapp.navigation.NavigationMethod
+import com.github.navigationapp.navigation.ScreenKey
 import com.github.navigationapp.navigation.navigationControllers.NoAnimFragmentStateChanger
-import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
 import kotlinx.coroutines.flow.StateFlow

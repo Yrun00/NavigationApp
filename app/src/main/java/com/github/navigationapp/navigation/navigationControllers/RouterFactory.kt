@@ -9,6 +9,7 @@ import androidx.navigation.fragment.NavHostFragment
 import com.github.navigationapp.NavigationState
 import com.github.navigationapp.R
 import com.github.navigationapp.navigation.NavigationMethod
+import com.github.navigationapp.navigation.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
 

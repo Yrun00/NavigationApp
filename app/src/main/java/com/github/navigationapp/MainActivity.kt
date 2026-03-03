@@ -5,8 +5,8 @@ import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.github.navigationapp.navigation.NavigationHost
+import com.github.navigationapp.navigation.ScreenKey
 import com.github.navigationapp.navigation.navigationControllers.NoAnimFragmentStateChanger
-import com.github.navigationapp.navigation.navigationControllers.ScreenKey
 import com.github.terrakok.cicerone.androidx.AppNavigator
 import com.zhuinden.simplestack.StateChanger
 import kotlinx.coroutines.flow.StateFlow
@@ -46,7 +46,7 @@ class MainActivity : AppCompatActivity(), NavigationHost {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        delegate.initialize(savedInstanceState, this)  // Activity — lifecycleOwner сам
+        delegate.initialize(savedInstanceState, this)
 
         onBackPressedDispatcher.addCallback(this) { delegate.handleBack() }
     }

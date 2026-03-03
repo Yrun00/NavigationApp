@@ -1,7 +1,7 @@
 package com.github.navigationapp
 
 import com.github.navigationapp.navigation.NavigationMethod
-import com.github.navigationapp.navigation.navigationControllers.ScreenKey
+import com.github.navigationapp.navigation.ScreenKey
 import com.github.terrakok.cicerone.Cicerone
 import com.github.terrakok.cicerone.Router
 import com.zhuinden.simplestack.Backstack
