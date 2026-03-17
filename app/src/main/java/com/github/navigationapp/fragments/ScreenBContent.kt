@@ -90,9 +90,9 @@ fun ScreenBContent(
                     color = Color(0xFFFF9800)
                 )
                 Text(
-                    text = "Total screens in backstack",
+                    text = "Recursion Depth (BackStack)",
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.7f),
                 )
             }
         }

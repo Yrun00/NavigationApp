@@ -30,7 +30,8 @@ class ScreenBFragment : Fragment() {
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         setContent {
             val host = remember { findNavigationHost() }
-            val backStackDepth by host.observeBackStackDepth().collectAsState()
+            val depthFlow = remember { host.observeBackStackDepth() }
+            val backStackDepth by depthFlow.collectAsState()
 
             ScreenBContent(
                 recursionDepthFromBundle = depthFromBundle,

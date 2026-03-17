@@ -19,9 +19,13 @@ import com.zhuinden.simplestack.History
 import com.zhuinden.simplestack.StateChange
 import com.zhuinden.simplestack.StateChanger
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -38,7 +42,6 @@ class NavigationHostDelegate(
     private var router: NavigationRouter? = null
     private var activeMethod: NavigationMethod? = null
     private var coroutineScope: CoroutineScope? = null
-    private var backStackDepthCleanup: (() -> Unit)? = null
 
     private val routerFactory = RouterFactory(
         fragmentManager = fragmentManager,
@@ -66,43 +69,48 @@ class NavigationHostDelegate(
     @SuppressLint("RestrictedApi")
     override fun observeBackStackDepth(): StateFlow<Int> {
         val state = viewModel.stateOrNull(level) ?: return MutableStateFlow(0)
-        return when (state.method.value) {
-            NavigationMethod.FRAGMENT_MANAGER,
-            NavigationMethod.CICERONE,
-                -> {
-                val flow = MutableStateFlow(fmConsecutiveBDepth())
-                val listener = FragmentManager.OnBackStackChangedListener {
-                    flow.value = fmConsecutiveBDepth()
-                }
-                fragmentManager.addOnBackStackChangedListener(listener)
-                backStackDepthCleanup = {
-                    fragmentManager.removeOnBackStackChangedListener(listener)
-                }
-                flow
-            }
-
-            NavigationMethod.SIMPLE_STACK -> {
-                val backstack = state.simpleBackstack
-                fun currentDepth() = backstack.getHistory<ScreenKey>()
-                    .takeLastWhile { it is ScreenKey.B }.size - 1
-
-                val flow = MutableStateFlow(currentDepth())
-                val listener = Backstack.CompletionListener { flow.value = currentDepth() }
-                backstack.addStateChangeCompletionListener(listener)
-                backStackDepthCleanup = {
-                    backstack.removeStateChangeCompletionListener(listener)
-                }
-                flow
-            }
-
-            NavigationMethod.JETPACK ->
-                routerFactory.getNavController()!!
-                    .currentBackStack
-                    .map { entries ->
-                        entries.takeLastWhile { it.destination.id == R.id.screenBFragment }.size - 1
+        return state.method
+            .flatMapLatest { method ->
+                when (method) {
+                    NavigationMethod.FRAGMENT_MANAGER,
+                    NavigationMethod.CICERONE,
+                        -> callbackFlow {
+                        fun depth() = maxOf(0, fmConsecutiveBDepth())
+                        trySend(depth())
+                        val listener =
+                            FragmentManager.OnBackStackChangedListener { trySend(depth()) }
+                        fragmentManager.addOnBackStackChangedListener(listener)
+                        awaitClose { fragmentManager.removeOnBackStackChangedListener(listener) }
                     }
-                    .stateIn(coroutineScope!!, SharingStarted.Lazily, 0)
-        }
+
+                    NavigationMethod.SIMPLE_STACK -> callbackFlow {
+                        val backstack = state.simpleBackstack
+                        fun depth() = maxOf(
+                            0,
+                            backstack.getHistory<ScreenKey>()
+                                .takeLastWhile { it is ScreenKey.B }.size - 1,
+                        )
+                        trySend(depth())
+                        val listener = Backstack.CompletionListener { trySend(depth()) }
+                        backstack.addStateChangeCompletionListener(listener)
+                        awaitClose { backstack.removeStateChangeCompletionListener(listener) }
+                    }
+
+                    NavigationMethod.JETPACK ->
+                        routerFactory.getNavController()
+                            ?.currentBackStack
+                            ?.map { entries ->
+                                maxOf(
+                                    0,
+                                    entries.takeLastWhile {
+                                        it.destination.id == R.id.screenBFragment
+                                    }.size - 1,
+                                )
+                            }
+                            ?: flowOf(0)
+                }
+            }
+            .stateIn(coroutineScope!!, SharingStarted.WhileSubscribed(), 0)
     }
 
     private fun fmConsecutiveBDepth(): Int {
@@ -122,8 +130,6 @@ class NavigationHostDelegate(
     }
 
     fun onDestroyView() {
-        backStackDepthCleanup?.invoke()
-        backStackDepthCleanup = null
         if (viewModel.stateOrNull(level) == null) return
         router?.detach()
     }
